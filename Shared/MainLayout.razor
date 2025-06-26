@@ -1,0 +1,280 @@
+﻿@inherits LayoutComponentBase
+@using DineSure.Services
+@using DineSure.Models
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.JSInterop
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject AuthService AuthService
+@inject FavoriteService FavoriteService
+@inject UserManager<User> UserManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@implements IDisposable
+
+<PageTitle>DineSure</PageTitle>
+
+<div class="top-bar">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary px-4">
+        <a class="navbar-brand" href="">DineSure</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="" Match="NavLinkMatch.All">Home</NavLink>
+                </li>
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="restaurants">Restaurants</NavLink>
+                </li>
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="restaurants/map">Map</NavLink>
+                </li>
+                <AuthorizeView>
+                    <Authorized>
+                        <AuthorizeView Roles="Admin" Context="adminContext">
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-cog me-1"></i>Admin
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="adminDropdown">
+                                    <li><a class="dropdown-item" href="/admin"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a></li>
+                                    <li><a class="dropdown-item" href="/admin/restaurants"><i class="fas fa-utensils me-2"></i>Manage Restaurants</a></li>
+                                    <li><a class="dropdown-item" href="/admin/restaurants/add"><i class="fas fa-plus me-2"></i>Add Restaurant</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="/restaurants"><i class="fas fa-eye me-2"></i>View Public Site</a></li>
+                                </ul>
+                            </li>
+                        </AuthorizeView>
+                    </Authorized>
+                </AuthorizeView>
+            </ul>
+            <ul class="navbar-nav">
+                <AuthorizeView>
+                    <Authorized>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="favoritesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-heart me-1"></i>Favorites (@favoriteRestaurants.Count)
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="favoritesDropdown" style="min-width: 300px;">
+                                @if (favoriteRestaurants.Any())
+                                {
+                                    <li><h6 class="dropdown-header">Your Favorite Restaurants</h6></li>
+                                    @foreach (var restaurant in favoriteRestaurants.Take(5))
+                                    {
+                                        <li>
+                                            <a class="dropdown-item d-flex align-items-center" href="/restaurant/@restaurant.Id">
+                                                <img src="@GetRestaurantImageUrl(restaurant)" alt="@restaurant.Name" style="width: 40px; height: 40px; object-fit: cover; border-radius: 5px;" class="me-2">
+                                                <div>
+                                                    <div class="fw-bold">@restaurant.Name</div>
+                                                    <small class="text-muted">@GetShortAddress(restaurant.Address)</small>
+                                                </div>
+                                            </a>
+                                        </li>
+                                    }
+                                    @if (favoriteRestaurants.Count > 5)
+                                    {
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item text-center" href="/favorites">View All (@favoriteRestaurants.Count) Favorites</a></li>
+                                    }
+                                    else if (favoriteRestaurants.Count > 1)
+                                    {
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item text-center" href="/favorites">View All Favorites</a></li>
+                                    }
+                                }
+                                else
+                                {
+                                    <li><span class="dropdown-item-text text-muted">No favorites yet</span></li>
+                                    <li><a class="dropdown-item" href="/restaurants">Discover Restaurants</a></li>
+                                }
+                            </ul>
+                        </li>
+                        <li class="nav-item">
+                            <NavLink class="nav-link" href="profile">
+                                <i class="fas fa-user me-1"></i>Profile
+                            </NavLink>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link btn btn-link" @onclick="HandleLogout">
+                                <i class="fas fa-sign-out-alt me-1"></i>Logout
+                            </button>
+                        </li>
+                    </Authorized>
+                    <NotAuthorized>
+                        <li class="nav-item">
+                            <NavLink class="nav-link" href="login">Login</NavLink>
+                        </li>
+                        <li class="nav-item">
+                            <NavLink class="nav-link" href="register">Sign Up</NavLink>
+                        </li>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </ul>
+        </div>
+    </nav>
+</div>
+
+<div class="container mt-4">
+    @Body
+</div>
+
+@code {
+    private List<Restaurant> favoriteRestaurants = new();
+    private User? currentUser;
+    private DotNetObjectReference<MainLayout>? dotNetRef;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Set up .NET object reference for JavaScript callbacks
+        dotNetRef = DotNetObjectReference.Create(this);
+        
+        // Subscribe to authentication state changes
+        AuthenticationStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+        
+        await LoadCurrentUser();
+        if (currentUser != null)
+        {
+            await LoadFavoriteRestaurants();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && dotNetRef != null)
+        {
+            try
+            {
+                // Wait for JavaScript to be ready and then set up the callback
+                await Task.Delay(500); // Increased delay to ensure JS is loaded
+                
+                // Check if the function exists before calling it
+                var functionExists = await JSRuntime.InvokeAsync<bool>("eval", "typeof window.setFavoritesRefreshCallback === 'function'");
+                if (functionExists)
+                {
+                    await JSRuntime.InvokeVoidAsync("window.setFavoritesRefreshCallback", dotNetRef);
+                }
+                else
+                {
+                    Console.WriteLine("setFavoritesRefreshCallback function not found, favorites auto-refresh will not work");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error setting up favorites refresh callback: {ex.Message}");
+                // This is not critical, favorites will just not auto-refresh
+            }
+        }
+    }
+
+    private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
+    {
+        await LoadCurrentUser();
+        if (currentUser != null)
+        {
+            await LoadFavoriteRestaurants();
+        }
+        else
+        {
+            favoriteRestaurants.Clear();
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadCurrentUser()
+    {
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            Console.WriteLine($"MainLayout - Auth state IsAuthenticated: {authState.User.Identity?.IsAuthenticated}");
+            
+            if (authState.User.Identity?.IsAuthenticated == true)
+            {
+                var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                Console.WriteLine($"MainLayout - Found user ID: {userId}");
+                
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    currentUser = await UserManager.FindByIdAsync(userId);
+                    Console.WriteLine($"MainLayout - Loaded user: {(currentUser != null ? currentUser.Email : "null")}");
+                }
+            }
+            else
+            {
+                currentUser = null;
+                Console.WriteLine("MainLayout - User not authenticated");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading current user: {ex.Message}");
+        }
+    }
+
+    private async Task LoadFavoriteRestaurants()
+    {
+        try
+        {
+            if (currentUser != null)
+            {
+                Console.WriteLine($"MainLayout - Loading favorites for user: {currentUser.Email}");
+                favoriteRestaurants = await FavoriteService.GetUserFavoritesAsync(currentUser.Id);
+                Console.WriteLine($"MainLayout - Loaded {favoriteRestaurants.Count} favorite restaurants");
+                
+                foreach (var fav in favoriteRestaurants)
+                {
+                    Console.WriteLine($"MainLayout - Favorite: {fav.Name} (ID: {fav.Id})");
+                }
+            }
+            else
+            {
+                Console.WriteLine("MainLayout - No current user, clearing favorites");
+                favoriteRestaurants.Clear();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading favorite restaurants: {ex.Message}");
+        }
+    }
+
+    [JSInvokable]
+    public async Task RefreshFavorites()
+    {
+        await LoadFavoriteRestaurants();
+        StateHasChanged();
+    }
+
+    private string GetRestaurantImageUrl(Restaurant restaurant)
+    {
+        var images = new[] { "food1.jpg", "food2.jpg", "food3.jpg", "food4.jpg", "food5.jpg", "food6.jpg" };
+        var idx = Math.Abs(restaurant.Name.GetHashCode()) % images.Length;
+        return $"images/restaurants/{images[idx]}";
+    }
+
+    private string GetShortAddress(string? address)
+    {
+        if (string.IsNullOrEmpty(address)) return "Bucharest";
+        
+        // Take only the first part before comma or first 30 characters
+        var parts = address.Split(',');
+        var shortAddress = parts[0].Trim();
+        return shortAddress.Length > 30 ? shortAddress.Substring(0, 30) + "..." : shortAddress;
+    }
+
+    private async Task HandleLogout()
+    {
+        var success = await JSRuntime.InvokeAsync<bool>("submitLogoutForm");
+        if (success)
+        {
+            NavigationManager.NavigateTo("/", true);
+        }
+    }
+
+    public void Dispose()
+    {
+        AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+        dotNetRef?.Dispose();
+    }
+}

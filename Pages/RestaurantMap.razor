@@ -1,0 +1,78 @@
+@page "/restaurants/map"
+@layout MainLayout
+@using DineSure.Models
+@using DineSure.Services
+@inject OverpassRestaurantService OverpassService
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Restaurant Map - DineSure</PageTitle>
+
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="fas fa-map-marked-alt me-2"></i>Restaurant Map</h2>
+            <div>
+                <a href="/restaurants" class="btn btn-outline-primary">
+                    <i class="fas fa-list me-1"></i>List View
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Map Container -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body p-0">
+                <div id="map" style="height: 600px; width: 100%;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<RestaurantOsm> osmRestaurants = new();
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            osmRestaurants = await OverpassService.GetRestaurantsFromOSMAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading OSM restaurants: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !isLoading)
+        {
+            await InitializeMap();
+        }
+    }
+
+    private async Task InitializeMap()
+    {
+        var restaurantData = osmRestaurants
+            .Where(r => r.Lat != 0 && r.Lon != 0)
+            .Select(r => new
+            {
+                name = r.Name ?? "Unnamed",
+                address = r.Address ?? "N/A",
+                phone = r.PhoneNumber ?? "",
+                website = r.Website ?? "",
+                latitude = r.Lat,
+                longitude = r.Lon
+            }).ToList();
+
+        await JSRuntime.InvokeVoidAsync("initializeMap", restaurantData);
+    }
+}

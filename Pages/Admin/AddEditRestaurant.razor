@@ -1,0 +1,372 @@
+@page "/admin/restaurants/add"
+@page "/admin/restaurants/edit/{RestaurantId:int}"
+@using DineSure.Models
+@using DineSure.Data
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject ApplicationDbContext DbContext
+
+<PageTitle>@(IsEditMode ? "Edit Restaurant" : "Add Restaurant") - DineSure Admin</PageTitle>
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                @if (IsEditMode)
+                {
+                    <i class="fas fa-edit me-2"></i>
+                }
+                else
+                {
+                    <i class="fas fa-plus me-2"></i>
+                }
+                @(IsEditMode ? "Edit Restaurant" : "Add New Restaurant")
+            </h2>
+            <div>
+                <button class="btn btn-outline-secondary" @onclick="BackToRestaurants">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Restaurants
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-body">
+                <EditForm Model="@model" OnValidSubmit="HandleSubmit">
+                    <DataAnnotationsValidator />
+
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>@errorMessage
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(successMessage))
+                    {
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle me-2"></i>@successMessage
+                        </div>
+                    }
+
+                    <div class="row">
+                        <!-- Basic Information -->
+                        <div class="col-md-6">
+                            <h5 class="text-primary mb-3"><i class="fas fa-info-circle me-2"></i>Basic Information</h5>
+                            
+                            <div class="form-group mb-3">
+                                <label for="name" class="form-label">Restaurant Name *</label>
+                                <InputText id="name" class="form-control" @bind-Value="model.Name" disabled="@isProcessing" />
+                                <ValidationMessage For="@(() => model.Name)" />
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label for="cuisine" class="form-label">Cuisine Type *</label>
+                                <InputSelect id="cuisine" class="form-select" @bind-Value="model.CuisineType" disabled="@isProcessing">
+                                    <option value="">Select Cuisine Type</option>
+                                    @foreach (var cuisine in Enum.GetValues(typeof(CuisineType)))
+                                    {
+                                        <option value="@cuisine">@cuisine</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => model.CuisineType)" />
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label for="rating" class="form-label">Rating *</label>
+                                <InputNumber id="rating" class="form-control" @bind-Value="model.Rating" min="1" max="5" step="0.1" disabled="@isProcessing" />
+                                <ValidationMessage For="@(() => model.Rating)" />
+                                <small class="form-text text-muted">Rating between 1.0 and 5.0</small>
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label for="description" class="form-label">Description</label>
+                                <InputTextArea id="description" class="form-control" rows="4" @bind-Value="model.Description" disabled="@isProcessing" />
+                                <ValidationMessage For="@(() => model.Description)" />
+                                <small class="form-text text-muted">Optional description of the restaurant</small>
+                            </div>
+                        </div>
+
+                        <!-- Contact Information -->
+                        <div class="col-md-6">
+                            <h5 class="text-success mb-3"><i class="fas fa-map-marker-alt me-2"></i>Contact & Location</h5>
+                            
+                            <div class="form-group mb-3">
+                                <label for="address" class="form-label">Address *</label>
+                                <InputText id="address" class="form-control" @bind-Value="model.Address" disabled="@isProcessing" />
+                                <ValidationMessage For="@(() => model.Address)" />
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label for="city" class="form-label">City *</label>
+                                <InputSelect id="city" class="form-select" @bind-Value="model.City" disabled="@isProcessing">
+                                    <option value="0">Select City</option>
+                                    <option value="1">Bucharest</option>
+                                </InputSelect>
+                                <ValidationMessage For="@(() => model.City)" />
+                                <small class="form-text text-muted">Currently focused on Bucharest restaurants</small>
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label for="phone" class="form-label">Phone Number *</label>
+                                <InputText id="phone" class="form-control" @bind-Value="model.PhoneNumber" disabled="@isProcessing" />
+                                <ValidationMessage For="@(() => model.PhoneNumber)" />
+                                <small class="form-text text-muted">Format: +40 XXX XXX XXX</small>
+                            </div>
+
+                            <!-- Preview Card -->
+                            <div class="card bg-light">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-eye me-2"></i>Preview</h6>
+                                </div>
+                                <div class="card-body">
+                                    <h6 class="card-title">@(string.IsNullOrEmpty(model.Name) ? "Restaurant Name" : model.Name)</h6>
+                                    <p class="card-text">
+                                        <span class="badge bg-secondary">@(model.CuisineType == 0 ? "Cuisine" : model.CuisineType.ToString())</span>
+                                        <span class="ms-2">
+                                            @for (int i = 1; i <= 5; i++)
+                                            {
+                                                @if (i <= model.Rating)
+                                                {
+                                                    <i class="fas fa-star text-warning"></i>
+                                                }
+                                                else
+                                                {
+                                                    <i class="fas fa-star-o text-muted"></i>
+                                                }
+                                            }
+                                            <span class="ms-1">@model.Rating.ToString("F1")</span>
+                                        </span>
+                                    </p>
+                                    <p class="card-text">
+                                        <small class="text-muted">
+                                            <i class="fas fa-map-marker-alt me-1"></i>
+                                            @(string.IsNullOrEmpty(model.Address) ? "Address" : model.Address)
+                                        </small>
+                                    </p>
+                                    <p class="card-text">
+                                        <small class="text-muted">
+                                            <i class="fas fa-phone me-1"></i>
+                                            @(string.IsNullOrEmpty(model.PhoneNumber) ? "Phone Number" : model.PhoneNumber)
+                                        </small>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    @if (IsEditMode)
+                                    {
+                                        <button type="button" class="btn btn-outline-danger" @onclick="DeleteRestaurant" disabled="@isProcessing">
+                                            <i class="fas fa-trash me-1"></i>Delete Restaurant
+                                        </button>
+                                    }
+                                </div>
+                                <div>
+                                    <button type="button" class="btn btn-secondary me-2" @onclick="BackToRestaurants" disabled="@isProcessing">
+                                        Cancel
+                                    </button>
+                                    <button type="submit" class="btn @(IsEditMode ? "btn-primary" : "btn-success")" disabled="@isProcessing">
+                                        @if (isProcessing)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                            <span>@(IsEditMode ? "Updating..." : "Creating...")</span>
+                                        }
+                                        else
+                                        {
+                                            @if (IsEditMode)
+                                            {
+                                                <i class="fas fa-save me-1"></i>
+                                            }
+                                            else
+                                            {
+                                                <i class="fas fa-plus me-1"></i>
+                                            }
+                                            <span>@(IsEditMode ? "Update Restaurant" : "Create Restaurant")</span>
+                                        }
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int? RestaurantId { get; set; }
+
+    private RestaurantModel model = new();
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private bool isProcessing = false;
+
+    private bool IsEditMode => RestaurantId.HasValue && RestaurantId.Value > 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (IsEditMode)
+        {
+            await LoadRestaurant();
+        }
+        else
+        {
+            model.City = 1; // 1 = Bucharest
+            model.Rating = 4.0;
+        }
+    }
+
+    private async Task LoadRestaurant()
+    {
+        try
+        {
+            var restaurant = await DbContext.Restaurants.FindAsync(RestaurantId!.Value);
+            if (restaurant != null)
+            {
+                model = new RestaurantModel
+                {
+                    Name = restaurant.Name ?? string.Empty,
+                    CuisineType = restaurant.CuisineTypes.FirstOrDefault(),
+                    Rating = restaurant.Rating,
+                    Address = restaurant.Address ?? string.Empty,
+                    City = restaurant.City,
+                    PhoneNumber = restaurant.PhoneNumber ?? string.Empty,
+                    Description = restaurant.Description ?? string.Empty
+                };
+            }
+            else
+            {
+                errorMessage = "Restaurant not found.";
+                await Task.Delay(2000);
+                NavigationManager.NavigateTo("/admin/restaurants");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading restaurant: {ex.Message}";
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (isProcessing) return;
+
+        try
+        {
+            isProcessing = true;
+            errorMessage = string.Empty;
+            successMessage = string.Empty;
+            StateHasChanged();
+
+            Restaurant restaurant;
+
+            if (IsEditMode)
+            {
+                restaurant = await DbContext.Restaurants.FindAsync(RestaurantId!.Value) ?? new Restaurant();
+            }
+            else
+            {
+                restaurant = new Restaurant();
+                DbContext.Restaurants.Add(restaurant);
+            }
+
+            restaurant.Name = model.Name;
+            restaurant.CuisineTypes = new List<CuisineType> { model.CuisineType };
+            restaurant.Rating = model.Rating;
+            restaurant.Address = model.Address;
+            restaurant.City = model.City;
+            restaurant.PhoneNumber = model.PhoneNumber;
+            restaurant.Description = model.Description;
+
+            await DbContext.SaveChangesAsync();
+
+            successMessage = IsEditMode ? "Restaurant updated successfully!" : "Restaurant created successfully!";
+
+            StateHasChanged();
+            await Task.Delay(1500);
+            NavigationManager.NavigateTo("/admin/restaurants");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error {(IsEditMode ? "updating" : "creating")} restaurant: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DeleteRestaurant()
+    {
+        if (!IsEditMode) return;
+
+        if (await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to delete '{model.Name}'? This action cannot be undone."))
+        {
+            try
+            {
+                var restaurant = await DbContext.Restaurants.FindAsync(RestaurantId!.Value);
+                if (restaurant != null)
+                {
+                    DbContext.Restaurants.Remove(restaurant);
+                    await DbContext.SaveChangesAsync();
+                    await JSRuntime.InvokeVoidAsync("alert", "Restaurant deleted successfully!");
+                    NavigationManager.NavigateTo("/admin/restaurants");
+                }
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Error deleting restaurant: {ex.Message}";
+                isProcessing = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private void BackToRestaurants()
+    {
+        NavigationManager.NavigateTo("/admin/restaurants");
+    }
+
+    private class RestaurantModel
+    {
+        [Required(ErrorMessage = "Restaurant name is required")]
+        [StringLength(100)]
+        public string Name { get; set; } = string.Empty;
+
+        [Required]
+        public CuisineType CuisineType { get; set; }
+
+        [Required]
+        [Range(1.0, 5.0)]
+        public double Rating { get; set; } = 4.0;
+
+        [Required]
+        [StringLength(200)]
+        public string Address { get; set; } = string.Empty;
+
+        [Required]
+        public int City { get; set; } = 1;
+
+        [Required]
+        [Phone]
+        public string PhoneNumber { get; set; } = string.Empty;
+
+        [StringLength(500)]
+        public string Description { get; set; } = string.Empty;
+    }
+}

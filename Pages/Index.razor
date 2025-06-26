@@ -1,0 +1,187 @@
+﻿@page "/"
+@layout MainLayout
+@using DineSure.Models
+@using DineSure.Services
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject OverpassRestaurantService OverpassService
+
+<PageTitle>DineSure - Find the Best Restaurants</PageTitle>
+
+<!-- Hero Section -->
+<div class="modern-hero">
+    <div class="overlay">
+        <div class="content-wrapper">
+            <h1 class="hero-main-title">Find the Best Restaurants in Bucharest</h1>
+            <p class="hero-subtitle">Discover amazing dining experiences with real restaurants from OpenStreetMap<br />Perfect for your dietary preferences and location needs.</p>
+            <div class="search-bar">
+                <input type="text" placeholder="Search for restaurants..." class="search-input" @bind="searchQuery" @onkeypress="OnSearchKeyPress" />
+                <button class="search-button" @onclick="PerformSearch">
+                    <i class="fas fa-search me-1"></i>Search
+                </button>
+            </div>
+            <div class="hero-stats mt-4">
+                <div class="stat-item">
+                    <i class="fas fa-utensils"></i>
+                    <span class="stat-number">@restaurantCount</span>
+                    <span class="stat-label">Restaurants</span>
+                </div>
+                <div class="stat-item">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span class="stat-number">Bucharest</span>
+                    <span class="stat-label">Coverage</span>
+                </div>
+                <div class="stat-item">
+                    <i class="fas fa-star"></i>
+                    <span class="stat-number">Real Data</span>
+                    <span class="stat-label">From OSM</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Features Section -->
+<section class="features-section py-5">
+    <div class="container">
+        <div class="row text-center">
+            <div class="col-12 mb-5">
+                <h2 class="section-title">Why Choose DineSure?</h2>
+                <p class="section-subtitle">We provide real, accurate restaurant data to help you make the best dining decisions</p>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-map-marked-alt"></i>
+                    </div>
+                    <h4>Real Location Data</h4>
+                    <p>All restaurant data comes from OpenStreetMap, ensuring accurate locations and contact information.</p>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-utensils"></i>
+                    </div>
+                    <h4>Comprehensive Listings</h4>
+                    <p>Discover restaurants across Bucharest with detailed information about cuisine, location, and contact details.</p>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-heart"></i>
+                    </div>
+                    <h4>Dietary Preferences</h4>
+                    <p>Find restaurants that match your specific dietary needs and food preferences with ease.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Quick Actions Section -->
+<section class="quick-actions-section py-5 bg-light">
+    <div class="container">
+        <div class="row">
+            <div class="col-12 text-center mb-4">
+                <h2 class="section-title">Explore Restaurants</h2>
+            </div>
+        </div>
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-4 mb-3">
+                <a href="/restaurants" class="action-card">
+                    <div class="action-icon">
+                        <i class="fas fa-list"></i>
+                    </div>
+                    <h5>Browse All Restaurants</h5>
+                    <p>View all available restaurants in a comprehensive list</p>
+                </a>
+            </div>
+            <div class="col-md-6 col-lg-4 mb-3">
+                <a href="/restaurants/map" class="action-card">
+                    <div class="action-icon">
+                        <i class="fas fa-map"></i>
+                    </div>
+                    <h5>Map View</h5>
+                    <p>Explore restaurants on an interactive map</p>
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="cta-section py-5">
+    <div class="container-fluid px-0">
+        <div class="row text-center">
+            <div class="col-12">
+                <div class="cta-content">
+                    <h2 class="cta-title">Ready to Discover Great Food?</h2>
+                    <p class="cta-text">
+                        Join DineSure and explore the best restaurants in Bucharest with real, verified data
+                    </p>
+                    <AuthorizeView>
+                        <Authorized>
+                            <a href="/restaurants" class="btn btn-cta">
+                                <i class="fas fa-utensils me-2"></i>Explore Restaurants Now
+                            </a>
+                        </Authorized>
+                        <NotAuthorized>
+                            <div class="auth-buttons">
+                                <a href="/register" class="btn btn-cta me-3">
+                                    <i class="fas fa-user-plus me-2"></i>Sign Up Free
+                                </a>
+                                <a href="/login" class="btn btn-outline-light">
+                                    <i class="fas fa-sign-in-alt me-2"></i>Sign In
+                                </a>
+                            </div>
+                        </NotAuthorized>
+                    </AuthorizeView>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@code {
+    private string searchQuery = "";
+    private int restaurantCount = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var restaurants = await OverpassService.GetRestaurantsFromOSMAsync();
+            restaurantCount = restaurants.Count;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading restaurant count: {ex.Message}");
+            restaurantCount = 0;
+        }
+    }
+
+    private void PerformSearch()
+    {
+        if (string.IsNullOrWhiteSpace(searchQuery))
+        {
+            NavigationManager.NavigateTo("/restaurants");
+        }
+        else
+        {
+            var encoded = Uri.EscapeDataString(searchQuery.Trim());
+            NavigationManager.NavigateTo($"/restaurants?search={encoded}");
+        }
+    }
+
+    private void OnSearchKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            PerformSearch();
+        }
+    }
+}

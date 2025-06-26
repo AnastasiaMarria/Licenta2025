@@ -1,0 +1,137 @@
+@page "/login"
+@using DineSure.Models
+@using DineSure.Services
+@using System.ComponentModel.DataAnnotations
+@inject NavigationManager NavigationManager
+@inject AuthService AuthService
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Login - DineSure</PageTitle>
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="text-center">Login</h3>
+            </div>
+            <div class="card-body">
+                <EditForm Model="@loginModel" OnValidSubmit="HandleLogin">
+                    <DataAnnotationsValidator />
+
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger">
+                            @errorMessage
+                        </div>
+                    }
+
+                    <div class="form-group mb-3">
+                        <label for="email">Email</label>
+                        <InputText id="email" class="form-control" @bind-Value="loginModel.Email" disabled="@isProcessing" />
+                        <ValidationMessage For="@(() => loginModel.Email)" />
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label for="password">Password</label>
+                        <InputText type="password" id="password" class="form-control" @bind-Value="loginModel.Password" disabled="@isProcessing" />
+                        <ValidationMessage For="@(() => loginModel.Password)" />
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <div class="form-check">
+                            <InputCheckbox id="rememberMe" class="form-check-input" @bind-Value="loginModel.RememberMe" disabled="@isProcessing" />
+                            <label class="form-check-label" for="rememberMe">Remember me</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <button type="submit" class="btn btn-primary w-100" disabled="@isProcessing">
+                            @if (isProcessing)
+                            {
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                <span class="ms-2">Logging in...</span>
+                            }
+                            else
+                            {
+                                <span>Login</span>
+                            }
+                        </button>
+                    </div>
+
+                    <div class="text-center">
+                        <p>Don't have an account? <a href="register">Sign up here</a></p>
+                    </div>
+                </EditForm>
+
+                @* Hidden form for actual login submission *@
+                <form id="loginForm" method="post" action="/Account/Login" style="display: none;">
+                    <input name="Email" value="@loginModel.Email" />
+                    <input name="Password" value="@loginModel.Password" />
+                    <input name="RememberMe" value="@loginModel.RememberMe" />
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    window.submitLoginForm = () => {
+        document.getElementById('loginForm').submit();
+        return true;
+    };
+</script>
+
+@code {
+    private LoginModel loginModel = new();
+    private string errorMessage = string.Empty;
+    private bool isProcessing = false;
+
+    protected override void OnInitialized()
+    {
+        if (!string.IsNullOrEmpty(ErrorFromQuery))
+        {
+            errorMessage = ErrorFromQuery;
+        }
+    }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? ErrorFromQuery { get; set; }
+
+    private class LoginModel
+    {
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email address")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Password is required")]
+        public string Password { get; set; } = string.Empty;
+
+        public bool RememberMe { get; set; }
+    }
+
+    private async Task HandleLogin()
+    {
+        if (isProcessing) return;
+
+        try
+        {
+            isProcessing = true;
+            errorMessage = string.Empty;
+            StateHasChanged();
+
+            // Use JavaScript to submit the form
+            await JSRuntime.InvokeVoidAsync("submitLoginForm");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An unexpected error occurred: {ex.Message}";
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+} 

@@ -1,0 +1,164 @@
+@page "/reservation/cancel/{reservationId:int}"
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@using Microsoft.EntityFrameworkCore
+@using DineSure.Data
+@using DineSure.Models
+
+<PageTitle>Cancel Reservation</PageTitle>
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            @if (isLoading)
+            {
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading reservation...</p>
+                </div>
+            }
+            else if (reservation == null)
+            {
+                <div class="alert alert-danger">
+                    <h4>❌ Reservation Not Found</h4>
+                    <p>The reservation you're trying to cancel could not be found.</p>
+                    <a href="/restaurants" class="btn btn-primary">Browse Restaurants</a>
+                </div>
+            }
+            else if (reservation.Status == ReservationStatus.Cancelled)
+            {
+                <div class="alert alert-info">
+                    <h4>✅ Already Cancelled</h4>
+                    <p>This reservation has already been cancelled.</p>
+                </div>
+            }
+            else if (cancellationSuccess)
+            {
+                <div class="alert alert-success">
+                    <h4>✅ Reservation Cancelled</h4>
+                    <p>Your reservation has been successfully cancelled. We're sorry to see you go!</p>
+                    
+                    <div class="text-center mt-4">
+                        <a href="/restaurants" class="btn btn-primary">Browse Restaurants</a>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="card">
+                    <div class="card-header bg-danger text-white">
+                        <h4 class="mb-0">❌ Cancel Reservation</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="reservation-details bg-light p-3 rounded mb-3">
+                            <h5 class="text-primary mb-3">Reservation to Cancel</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Restaurant:</strong> @reservation.Restaurant?.Name</p>
+                                    <p><strong>Date:</strong> @reservation.ReservationDateTime.ToString("dddd, MMMM dd, yyyy")</p>
+                                    <p><strong>Time:</strong> @reservation.ReservationDateTime.ToString("h:mm tt")</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Guests:</strong> @reservation.NumberOfGuests</p>
+                                    <p><strong>Name:</strong> @reservation.CustomerName</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-warning">
+                            <strong>⚠️ Are you sure?</strong> This action cannot be undone. Your table will be released and made available to other customers.
+                        </div>
+                        
+                        <div class="text-center">
+                            <button class="btn btn-danger btn-lg me-3" @onclick="CancelReservation" disabled="@isProcessing">
+                                @if (isProcessing)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                ❌ Yes, Cancel Reservation
+                            </button>
+                            <a href="/restaurants" class="btn btn-secondary btn-lg">
+                                ↩️ Go Back
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int ReservationId { get; set; }
+    
+    private Reservation? reservation;
+    private bool isLoading = true;
+    private bool isProcessing = false;
+    private bool cancellationSuccess = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadReservation();
+    }
+
+    private async Task LoadReservation()
+    {
+        try
+        {
+            reservation = await DbContext.Reservations
+                .Include(r => r.Restaurant)
+                .FirstOrDefaultAsync(r => r.Id == ReservationId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading reservation: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task CancelReservation()
+    {
+        if (reservation == null) return;
+        
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Are you absolutely sure you want to cancel this reservation?");
+        if (!confirmed) return;
+        
+        isProcessing = true;
+        try
+        {
+            reservation.Status = ReservationStatus.Cancelled;
+            reservation.UpdatedAt = DateTime.UtcNow;
+            
+            await DbContext.SaveChangesAsync();
+            cancellationSuccess = true;
+            
+            await JSRuntime.InvokeVoidAsync("alert", "Reservation cancelled successfully.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cancelling reservation: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", "An error occurred while cancelling your reservation. Please try again.");
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+}
+
+<style>
+    .reservation-details {
+        border-left: 4px solid #dc3545;
+    }
+    
+    .btn-lg {
+        padding: 0.75rem 1.5rem;
+        font-size: 1.1rem;
+    }
+</style> 

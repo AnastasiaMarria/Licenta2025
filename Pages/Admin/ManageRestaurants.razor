@@ -1,0 +1,420 @@
+@page "/admin/restaurants"
+@using DineSure.Models
+@using DineSure.Data
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject ApplicationDbContext DbContext
+
+<PageTitle>Manage Restaurants - DineSure</PageTitle>
+
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="fas fa-utensils me-2"></i>Manage Restaurants</h2>
+            <div>
+                <button class="btn btn-success" @onclick="AddRestaurant">
+                    <i class="fas fa-plus me-1"></i>Add Restaurant
+                </button>
+                <button class="btn btn-outline-secondary ms-2" @onclick="BackToDashboard">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters and Search -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <label for="searchTerm" class="form-label">Search Restaurants</label>
+                        <input type="text" id="searchTerm" class="form-control" @bind="searchTerm" @bind:event="oninput" placeholder="Search by name or address..." />
+                    </div>
+                    <div class="col-md-3">
+                        <label for="cuisineFilter" class="form-label">Filter by Cuisine</label>
+                        <select id="cuisineFilter" class="form-select" @bind="selectedCuisine" @bind:event="onchange">
+                            <option value="">All Cuisines</option>
+                            @foreach (var cuisine in availableCuisines)
+                            {
+                                <option value="@cuisine">@cuisine</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="ratingFilter" class="form-label">Minimum Rating</label>
+                        <select id="ratingFilter" class="form-select" @bind="minRating" @bind:event="onchange">
+                            <option value="0">All Ratings</option>
+                            <option value="1">1+ Stars</option>
+                            <option value="2">2+ Stars</option>
+                            <option value="3">3+ Stars</option>
+                            <option value="4">4+ Stars</option>
+                            <option value="5">5 Stars</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button class="btn btn-outline-secondary w-100" @onclick="ClearFilters">
+                            <i class="fas fa-times me-1"></i>Clear
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Restaurants Table -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-list me-2"></i>Restaurants (@filteredRestaurants.Count)</h5>
+                <div>
+                    <button class="btn btn-sm btn-outline-info" @onclick="RefreshData">
+                        <i class="fas fa-sync me-1"></i>Refresh
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                @if (isLoading)
+                {
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading restaurants...</p>
+                    </div>
+                }
+                else if (filteredRestaurants.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Cuisine</th>
+                                    <th>Rating</th>
+                                    <th>Address</th>
+                                    <th>Phone</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var restaurant in filteredRestaurants.Skip((currentPage - 1) * pageSize).Take(pageSize))
+                                {
+                                    <tr>
+                                        <td><strong>#@restaurant.Id</strong></td>
+                                        <td>
+                                            <div>
+                                                <strong>@restaurant.Name</strong>
+                                                @if (!string.IsNullOrEmpty(restaurant.Description))
+                                                {
+                                                    <br><small class="text-muted">@(restaurant.Description.Length > 50 ? restaurant.Description.Substring(0, 50) + "..." : restaurant.Description)</small>
+                                                }
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary">@GetCuisineDisplay(restaurant)</span>
+                                        </td>
+                                        <td>
+                                            @if (restaurant.Rating > 0)
+                                            {
+                                                <div class="d-flex align-items-center">
+                                                    <span class="me-2">@restaurant.Rating.ToString("F1")</span>
+                                                    <div class="text-warning">
+                                                        @for (int i = 1; i <= 5; i++)
+                                                        {
+                                                            @if (i <= restaurant.Rating)
+                                                            {
+                                                                <i class="fas fa-star"></i>
+                                                            }
+                                                            else
+                                                            {
+                                                                <i class="far fa-star"></i>
+                                                            }
+                                                        }
+                                                    </div>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">No rating</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <small>@restaurant.Address</small>
+                                        </td>
+                                        <td>
+                                            <small>@(string.IsNullOrEmpty(restaurant.PhoneNumber) ? "N/A" : restaurant.PhoneNumber)</small>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-info" @onclick="() => ViewRestaurant(restaurant)" title="View Details">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <button class="btn btn-outline-primary" @onclick="@(() => NavigationManager.NavigateTo($"/admin/restaurants/edit/{restaurant.Id}"))" title="Edit">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger" @onclick="() => DeleteRestaurant(restaurant)" title="Delete">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    @if (totalPages > 1)
+                    {
+                        <nav aria-label="Restaurant pagination">
+                            <ul class="pagination justify-content-center">
+                                <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                                    <button class="page-link" @onclick="() => ChangePage(currentPage - 1)" disabled="@(currentPage == 1)">Previous</button>
+                                </li>
+                                @for (int i = Math.Max(1, currentPage - 2); i <= Math.Min(totalPages, currentPage + 2); i++)
+                                {
+                                    <li class="page-item @(i == currentPage ? "active" : "")">
+                                        <button class="page-link" @onclick="() => ChangePage(i)">@i</button>
+                                    </li>
+                                }
+                                <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                                    <button class="page-link" @onclick="() => ChangePage(currentPage + 1)" disabled="@(currentPage == totalPages)">Next</button>
+                                </li>
+                            </ul>
+                        </nav>
+                    }
+                }
+                else
+                {
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-search fa-3x mb-3"></i>
+                        <h5>No restaurants found</h5>
+                        <p>@(string.IsNullOrEmpty(searchTerm) && string.IsNullOrEmpty(selectedCuisine) && minRating == 0 ? 
+                            "No restaurants available." : 
+                            "No restaurants match your current filters.")</p>
+                        @if (!string.IsNullOrEmpty(searchTerm) || !string.IsNullOrEmpty(selectedCuisine) || minRating > 0)
+                        {
+                            <button class="btn btn-outline-primary" @onclick="ClearFilters">Clear Filters</button>
+                        }
+                        else
+                        {
+                            <a href="/admin/restaurants/add" class="btn btn-primary">Add First Restaurant</a>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Restaurant Details Modal -->
+@if (selectedRestaurant != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@selectedRestaurant.Name</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Basic Information</h6>
+                            <p><strong>ID:</strong> #@selectedRestaurant.Id</p>
+                            <p><strong>Name:</strong> @selectedRestaurant.Name</p>
+                            <p><strong>Cuisine:</strong> <span class="badge bg-secondary">@GetCuisineDisplay(selectedRestaurant)</span></p>
+                            <p><strong>Rating:</strong> @(selectedRestaurant.Rating > 0 ? selectedRestaurant.Rating.ToString("F1") + " ⭐" : "No rating")</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Contact Information</h6>
+                            <p><strong>Address:</strong> @selectedRestaurant.Address</p>
+                            <p><strong>Phone:</strong> @(string.IsNullOrEmpty(selectedRestaurant.PhoneNumber) ? "N/A" : selectedRestaurant.PhoneNumber)</p>
+                            <p><strong>City:</strong> @selectedRestaurant.City</p>
+                            @if (!string.IsNullOrEmpty(selectedRestaurant.Email))
+                            {
+                                <p><strong>Email:</strong> @selectedRestaurant.Email</p>
+                            }
+                            @if (!string.IsNullOrEmpty(selectedRestaurant.Website))
+                            {
+                                <p><strong>Website:</strong> <a href="@selectedRestaurant.Website" target="_blank">@selectedRestaurant.Website</a></p>
+                            }
+                            @if (selectedRestaurant.Latitude != 0 && selectedRestaurant.Longitude != 0)
+                            {
+                                <p><strong>Coordinates:</strong> @selectedRestaurant.Latitude.ToString("F6"), @selectedRestaurant.Longitude.ToString("F6")</p>
+                            }
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(selectedRestaurant.Description))
+                    {
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <h6>Description</h6>
+                                <p>@selectedRestaurant.Description</p>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Close</button>
+                    <button type="button" class="btn btn-primary" @onclick="@(() => NavigationManager.NavigateTo($"/admin/restaurants/edit/{selectedRestaurant.Id}"))">Edit Restaurant</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Restaurant> allRestaurants = new();
+    private List<Restaurant> filteredRestaurants = new();
+    private List<string> availableCuisines = new();
+    private Restaurant? selectedRestaurant = null;
+
+    private string searchTerm = string.Empty;
+    private string selectedCuisine = string.Empty;
+    private int minRating = 0;
+    private bool isLoading = true;
+
+    private int currentPage = 1;
+    private int pageSize = 10;
+    private int totalPages => (int)Math.Ceiling((double)filteredRestaurants.Count / pageSize);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRestaurants();
+    }
+
+    private async Task LoadRestaurants()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            allRestaurants = DbContext.Restaurants.ToList();
+            
+            // Extract available cuisines safely
+            availableCuisines = allRestaurants
+                .SelectMany(r => r.CuisineTypes ?? new List<CuisineType>())
+                .Select(c => c.ToString())
+                .Distinct()
+                .OrderBy(c => c)
+                .ToList();
+
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error loading restaurants: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        filteredRestaurants = allRestaurants.Where(r =>
+            (string.IsNullOrEmpty(searchTerm) ||
+             r.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+             r.Address.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)) &&
+            (string.IsNullOrEmpty(selectedCuisine) || 
+             (r.CuisineTypes != null && r.CuisineTypes.Any(c => c.ToString() == selectedCuisine))) &&
+            (minRating == 0 || r.Rating >= minRating)
+        ).OrderBy(r => r.Name).ToList();
+
+        currentPage = 1;
+        StateHasChanged();
+    }
+
+    private string GetCuisineDisplay(Restaurant restaurant)
+    {
+        if (restaurant.CuisineTypes == null || !restaurant.CuisineTypes.Any())
+        {
+            return "No Cuisine";
+        }
+        return restaurant.CuisineTypes.First().ToString();
+    }
+
+    private void ClearFilters()
+    {
+        searchTerm = string.Empty;
+        selectedCuisine = string.Empty;
+        minRating = 0;
+        ApplyFilters();
+    }
+
+    private void ChangePage(int page)
+    {
+        if (page >= 1 && page <= totalPages)
+        {
+            currentPage = page;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RefreshData()
+    {
+        await LoadRestaurants();
+    }
+
+    private void ViewRestaurant(Restaurant restaurant)
+    {
+        selectedRestaurant = restaurant;
+        StateHasChanged();
+    }
+
+    private void CloseModal()
+    {
+        selectedRestaurant = null;
+        StateHasChanged();
+    }
+
+    private async Task DeleteRestaurant(Restaurant restaurant)
+    {
+        if (await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to delete '{restaurant.Name}'?"))
+        {
+            try
+            {
+                DbContext.Restaurants.Remove(restaurant);
+                await DbContext.SaveChangesAsync();
+                await LoadRestaurants();
+                await JSRuntime.InvokeVoidAsync("alert", $"Restaurant '{restaurant.Name}' deleted successfully.");
+            }
+            catch (Exception ex)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Error deleting restaurant: {ex.Message}");
+            }
+        }
+    }
+
+    private void AddRestaurant()
+    {
+        NavigationManager.NavigateTo("/admin/restaurants/add");
+    }
+
+    private void BackToDashboard()
+    {
+        NavigationManager.NavigateTo("/admin");
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            ApplyFilters();
+        }
+    }
+}

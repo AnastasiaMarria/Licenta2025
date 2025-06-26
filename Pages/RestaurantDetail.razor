@@ -1,0 +1,1017 @@
+@page "/restaurant/{restaurantId:int}"
+@layout MainLayout
+@using DineSure.Models
+@using DineSure.Data
+@using DineSure.Services
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+@inject MenuService MenuService
+@inject ReservationService ReservationService
+@inject FavoriteService FavoriteService
+@inject AuthService AuthService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>@(restaurant?.Name ?? "Restaurant") - DineSure</PageTitle>
+
+<style>
+    .restaurant-detail-page {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+    
+    .restaurant-hero {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+    
+    .restaurant-image-hero {
+        width: 100%;
+        height: 400px;
+        object-fit: cover;
+        object-position: center;
+    }
+    
+    .restaurant-info-overlay {
+        padding: 2rem;
+        background: linear-gradient(to right, rgba(0,0,0,0.8), rgba(0,0,0,0.6));
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        color: white;
+    }
+    
+    .favorite-btn-large {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: rgba(255, 255, 255, 0.95);
+        border: none;
+        border-radius: 50%;
+        width: 60px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        z-index: 10;
+    }
+    
+    .favorite-btn-large:hover {
+        transform: scale(1.1);
+        background: white;
+    }
+    
+    .favorite-btn-large i {
+        font-size: 24px;
+        color: #dc3545;
+    }
+    
+    .favorite-btn-large.is-favorite i {
+        animation: heartBeat 0.6s ease;
+    }
+    
+    .info-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        border: 1px solid #e9ecef;
+    }
+    
+
+    
+    /* Simple Menu Styles */
+    .menu-section {
+        margin-bottom: 3rem;
+    }
+
+    .menu-category-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #2c3e50;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #dee2e6;
+        text-align: center;
+    }
+
+    .menu-items {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .menu-item-simple {
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px dotted #dee2e6;
+    }
+
+    .menu-item-simple:last-child {
+        border-bottom: none;
+    }
+
+    .menu-item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 0.5rem;
+    }
+
+    .item-name {
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: #2c3e50;
+        flex: 1;
+    }
+
+    .item-price {
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: #28a745;
+        margin-left: 1rem;
+    }
+
+    .item-description {
+        color: #6c757d;
+        font-size: 0.95rem;
+        line-height: 1.4;
+        margin: 0;
+        font-style: italic;
+    }
+    
+    .dietary-indicator {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        background: #28a745;
+        color: white;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        margin-right: 0.5rem;
+        margin-bottom: 0.25rem;
+    }
+    
+    .price-tag {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #007bff;
+    }
+    
+    .reservation-form {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        border: 1px solid #e9ecef;
+    }
+    
+    @@keyframes heartBeat {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.3); }
+        100% { transform: scale(1); }
+    }
+</style>
+
+<div class="restaurant-detail-page">
+    <div class="container">
+        @if (isLoading)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                    <span class="visually-hidden">Loading restaurant...</span>
+                </div>
+            </div>
+        }
+        else if (restaurant == null)
+        {
+            <div class="text-center py-5">
+                <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                <h3>Restaurant Not Found</h3>
+                <p class="text-muted">The restaurant you're looking for doesn't exist or has been removed.</p>
+                <a href="/restaurants" class="btn btn-primary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Restaurants
+                </a>
+            </div>
+        }
+        else
+        {
+            <!-- Restaurant Hero Section -->
+            <div class="restaurant-hero position-relative">
+                <img src="@GetRestaurantImageUrl(restaurant)" alt="@restaurant.Name" class="restaurant-image-hero" />
+                
+                <!-- Favorite Button -->
+                <AuthorizeView>
+                    <Authorized>
+                        <button class="favorite-btn-large @(IsFavorite(restaurant.Id) ? "is-favorite" : "")" 
+                                @onclick="@(async () => await ToggleFavorite(restaurant.Id))">
+                            <i class="@(IsFavorite(restaurant.Id) ? "fas" : "far") fa-heart"></i>
+                        </button>
+                    </Authorized>
+                </AuthorizeView>
+                
+                <div class="restaurant-info-overlay">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h1 class="display-4 mb-2">@restaurant.Name</h1>
+                            <p class="lead mb-2">
+                                <i class="fas fa-map-marker-alt me-2"></i>@restaurant.Address
+                            </p>
+                            <div class="rating mb-2">
+                                @for (int i = 1; i <= 5; i++)
+                                {
+                                    <i class="@(i <= GetRestaurantRating(restaurant) ? "fas" : "far") fa-star text-warning"></i>
+                                }
+                                <span class="ms-2">(@GetRestaurantRating(restaurant).ToString("0.0"))</span>
+                            </div>
+                            <p class="mb-0">@GetRestaurantDescription(restaurant)</p>
+                        </div>
+                        <div class="col-md-4 text-md-end">
+                            <div class="contact-info">
+                                @if (!string.IsNullOrEmpty(restaurant.PhoneNumber))
+                                {
+                                    <p class="mb-1">
+                                        <i class="fas fa-phone me-2"></i>@restaurant.PhoneNumber
+                                    </p>
+                                }
+                                @if (!string.IsNullOrEmpty(restaurant.Email))
+                                {
+                                    <p class="mb-1">
+                                        <i class="fas fa-envelope me-2"></i>@restaurant.Email
+                                    </p>
+                                }
+                                @if (!string.IsNullOrEmpty(restaurant.Website))
+                                {
+                                    <p class="mb-0">
+                                        <i class="fas fa-globe me-2"></i>
+                                        <a href="@restaurant.Website" target="_blank" class="text-white">Website</a>
+                                    </p>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Menu Section -->
+                <div class="col-lg-8">
+                    <div class="info-card">
+                        <h2 class="mb-4">
+                            <i class="fas fa-utensils me-2 text-primary"></i>
+                            Our Menu
+                            @if (currentUser != null)
+                            {
+                                <small class="text-muted d-block mt-1">Personalized for your dietary preferences</small>
+                            }
+                        </h2>
+                        
+                        @if (menuItems == null || !menuItems.Any())
+                        {
+                            <div class="text-center py-4">
+                                <i class="fas fa-utensils fa-2x text-muted mb-3"></i>
+                                <p class="text-muted">Loading personalized menu...</p>
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (var category in Enum.GetValues<MenuCategory>())
+                            {
+                                var categoryItems = menuItems.Where(m => m.Category == category).ToList();
+                                if (categoryItems.Any())
+                                {
+                                    <div class="menu-section mb-4">
+                                        <h4 class="menu-category-title">@GetCategoryDisplayName(category)</h4>
+                                        <div class="menu-items">
+                                            @foreach (var item in categoryItems)
+                                            {
+                                                <div class="menu-item-simple">
+                                                    <div class="menu-item-header">
+                                                        <span class="item-name">@item.Name</span>
+                                                        <span class="item-price">€@item.Price.ToString("0")</span>
+                                                    </div>
+                                                    <p class="item-description">@item.Description</p>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        }
+                    </div>
+                </div>
+
+                <!-- Reservation Section -->
+                <div class="col-lg-4">
+                    <div class="reservation-form">
+                        <h3 class="mb-4">
+                            <i class="fas fa-calendar-check me-2 text-primary"></i>
+                            Make a Reservation
+                        </h3>
+                        
+                        <AuthorizeView>
+                            <NotAuthorized>
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Please <a href="/login" class="alert-link">sign in</a> to make a reservation.
+                                </div>
+                            </NotAuthorized>
+                            <Authorized Context="authContext">
+                                <EditForm Model="reservationModel" OnValidSubmit="CreateReservation" OnInvalidSubmit="HandleInvalidSubmit">
+                                    <DataAnnotationsValidator />
+                                    <ValidationSummary class="text-danger mb-3" />
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Date & Time</label>
+                                        <input type="datetime-local" @bind="reservationModel.ReservationDateTime" 
+                                             class="form-control" 
+                                             min="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" />
+                                        <ValidationMessage For="() => reservationModel.ReservationDateTime" />
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Number of Guests</label>
+                                        <InputNumber @bind-Value="reservationModel.NumberOfGuests" 
+                                                   class="form-control" 
+                                                   min="1" 
+                                                   max="20" />
+                                        <ValidationMessage For="() => reservationModel.NumberOfGuests" />
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Your Name</label>
+                                        <InputText @bind-Value="reservationModel.CustomerName" 
+                                                 class="form-control" 
+                                                 placeholder="Full name" />
+                                        <ValidationMessage For="() => reservationModel.CustomerName" />
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Phone Number</label>
+                                        <InputText @bind-Value="reservationModel.CustomerPhone" 
+                                                 class="form-control" 
+                                                 placeholder="+40 XXX XXX XXX" />
+                                        <ValidationMessage For="() => reservationModel.CustomerPhone" />
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Email</label>
+                                        <InputText @bind-Value="reservationModel.CustomerEmail" 
+                                                 class="form-control" 
+                                                 placeholder="your@email.com" />
+                                        <ValidationMessage For="() => reservationModel.CustomerEmail" />
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Special Requests (Optional)</label>
+                                        <InputTextArea @bind-Value="reservationModel.SpecialRequests" 
+                                                     class="form-control" 
+                                                     rows="3" 
+                                                     placeholder="Any special dietary requirements, occasions, or preferences..." />
+                                        <ValidationMessage For="() => reservationModel.SpecialRequests" />
+                                    </div>
+                                    
+                                    <button type="submit" class="btn btn-primary w-100" disabled="@isSubmittingReservation">
+                                        @if (isSubmittingReservation)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                        }
+                                        else
+                                        {
+                                            <i class="fas fa-calendar-check me-2"></i>
+                                        }
+                                        Book Table
+                                    </button>
+                                </EditForm>
+                            </Authorized>
+                        </AuthorizeView>
+                    </div>
+                    
+                    <!-- Restaurant Info -->
+                    <div class="info-card mt-3">
+                        <h5 class="mb-3">
+                            <i class="fas fa-info-circle me-2 text-primary"></i>
+                            Restaurant Information
+                        </h5>
+                        
+                        <div class="info-item mb-2">
+                            <strong>Cuisine Type:</strong> @GetCuisineTypesDisplay(restaurant)
+                        </div>
+                        
+                        <div class="info-item mb-2">
+                            <strong>Price Range:</strong> @GetPriceRangeDisplay(restaurant)
+                        </div>
+                        
+                        @if (!string.IsNullOrEmpty(restaurant.OpeningHours))
+                        {
+                            <div class="info-item mb-2">
+                                <strong>Hours:</strong> @restaurant.OpeningHours
+                            </div>
+                        }
+                        
+                        <div class="info-item">
+                            <strong>Dietary Options:</strong>
+                            <div class="mt-1">
+                                @if (restaurant.HasVegetarianOptions) { <span class="dietary-indicator">🥬 Vegetarian</span> }
+                                @if (restaurant.HasVeganOptions) { <span class="dietary-indicator">🌱 Vegan</span> }
+                                @if (restaurant.HasGlutenFreeOptions) { <span class="dietary-indicator">🌾 Gluten-Free</span> }
+                                @if (restaurant.HasHalalOptions) { <span class="dietary-indicator">🕌 Halal</span> }
+                                @if (restaurant.HasKosherOptions) { <span class="dietary-indicator">✡️ Kosher</span> }
+                                @if (restaurant.HasLactoseFreeOptions) { <span class="dietary-indicator">🥛 Lactose-Free</span> }
+                                @if (restaurant.HasDiabeticFriendlyOptions) { <span class="dietary-indicator">💚 Diabetic-Friendly</span> }
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Reservation Count & Reviews Section -->
+                    <div class="info-card mt-3">
+                        <div class="row">
+                            <div class="col-6 text-center border-end">
+                                <h4 class="text-primary mb-1">@reservationCount</h4>
+                                <small class="text-muted">Customer Reservations</small>
+                            </div>
+                            <div class="col-6 text-center">
+                                <h4 class="text-warning mb-1">
+                                    @if (restaurantReviews?.Any() == true)
+                                    {
+                                        @($"{averageRating:F1}")
+                                        <span class="fs-6">⭐</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </h4>
+                                <small class="text-muted">
+                                    @if (restaurantReviews?.Any() == true)
+                                    {
+                                        @($"({restaurantReviews.Count} review{(restaurantReviews.Count != 1 ? "s" : "")})")
+                                    }
+                                    else
+                                    {
+                                        <span>No reviews yet</span>
+                                    }
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reviews Section -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="info-card">
+                        <h3 class="mb-4">
+                            <i class="fas fa-star me-2 text-warning"></i>
+                            Customer Reviews
+                        </h3>
+
+                        <!-- Write Review Section -->
+                        <AuthorizeView>
+                            <Authorized Context="authContext">
+                                @if (!hasUserReviewed)
+                                {
+                                    <div class="border-bottom pb-4 mb-4">
+                                        <h5>Write a Review</h5>
+                                        <EditForm Model="reviewModel" OnValidSubmit="SubmitReview">
+                                            <DataAnnotationsValidator />
+                                            <div class="row">
+                                                <div class="col-md-2">
+                                                    <label class="form-label">Rating</label>
+                                                    <InputSelect @bind-Value="reviewModel.Rating" class="form-select">
+                                                        <option value="0">Select Rating</option>
+                                                        <option value="5">⭐⭐⭐⭐⭐ Excellent</option>
+                                                        <option value="4">⭐⭐⭐⭐ Very Good</option>
+                                                        <option value="3">⭐⭐⭐ Good</option>
+                                                        <option value="2">⭐⭐ Fair</option>
+                                                        <option value="1">⭐ Poor</option>
+                                                    </InputSelect>
+                                                    <ValidationMessage For="() => reviewModel.Rating" />
+                                                </div>
+                                                <div class="col-md-10">
+                                                    <label class="form-label">Review Title</label>
+                                                    <InputText @bind-Value="reviewModel.Title" class="form-control" placeholder="Brief title for your review" />
+                                                    <ValidationMessage For="() => reviewModel.Title" />
+                                                </div>
+                                            </div>
+                                            <div class="mt-3">
+                                                <label class="form-label">Your Review</label>
+                                                <InputTextArea @bind-Value="reviewModel.Comment" class="form-control" rows="4" 
+                                                             placeholder="Share your experience about the food, service, atmosphere..." />
+                                                <ValidationMessage For="() => reviewModel.Comment" />
+                                            </div>
+                                            <button type="submit" class="btn btn-primary mt-3" disabled="@isSubmittingReview">
+                                                @if (isSubmittingReview)
+                                                {
+                                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                                }
+                                                <i class="fas fa-paper-plane me-2"></i>Submit Review
+                                            </button>
+                                        </EditForm>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="alert alert-info border-bottom mb-4">
+                                        <i class="fas fa-check-circle me-2"></i>
+                                        Thank you! You've already reviewed this restaurant.
+                                    </div>
+                                }
+                            </Authorized>
+                            <NotAuthorized>
+                                <div class="alert alert-info border-bottom mb-4">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Please <a href="/login" class="alert-link">sign in</a> to write a review.
+                                </div>
+                            </NotAuthorized>
+                        </AuthorizeView>
+
+                        <!-- Display Reviews -->
+                        @if (restaurantReviews?.Any() == true)
+                        {
+                            <div class="reviews-list">
+                                @foreach (var review in restaurantReviews.OrderByDescending(r => r.CreatedAt))
+                                {
+                                    <div class="review-item border-bottom pb-3 mb-3">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <div>
+                                                <h6 class="mb-1">@review.Title</h6>
+                                                <div class="text-warning mb-1">
+                                                    @for (int i = 1; i <= 5; i++)
+                                                    {
+                                                        @if (i <= review.Rating)
+                                                        {
+                                                            <i class="fas fa-star"></i>
+                                                        }
+                                                        else
+                                                        {
+                                                            <i class="far fa-star"></i>
+                                                        }
+                                                    }
+                                                </div>
+                                                <small class="text-muted">
+                                                    By @(review.User?.UserName ?? "Anonymous") • @review.CreatedAt.ToString("MMM dd, yyyy")
+                                                </small>
+                                            </div>
+                                        </div>
+                                        <p class="mb-0">@review.Comment</p>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center py-4">
+                                <i class="fas fa-comment-alt fa-2x text-muted mb-3"></i>
+                                <p class="text-muted">No reviews yet. Be the first to share your experience!</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public int RestaurantId { get; set; }
+    
+    private Restaurant? restaurant;
+    private List<MenuItem>? menuItems;
+    private User? currentUser;
+    private bool userFavorites = false;
+    private bool isLoading = true;
+    private bool isSubmittingReservation = false;
+    private bool isSubmittingReview = false;
+    
+    private List<RestaurantReview>? restaurantReviews;
+    private int reservationCount = 0;
+    private double averageRating = 0;
+    private bool hasUserReviewed = false;
+    
+    private ReservationModel reservationModel = new();
+    private ReviewModel reviewModel = new();
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCurrentUserAsync();
+        await LoadRestaurantAsync();
+        await LoadMenuAsync();
+        await LoadFavoriteStatusAsync();
+        await LoadReviewsAsync();
+        await LoadReservationCountAsync();
+    }
+    
+    private async Task LoadCurrentUserAsync()
+    {
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            Console.WriteLine($"Auth state in RestaurantDetail - IsAuthenticated: {authState.User.Identity?.IsAuthenticated}");
+            
+            if (authState.User.Identity?.IsAuthenticated == true)
+            {
+                // Try multiple claim types for email
+                var userEmail = authState.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value 
+                             ?? authState.User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
+                             ?? authState.User.FindFirst("email")?.Value
+                             ?? authState.User.Identity.Name;
+                             
+                Console.WriteLine($"Found user email in RestaurantDetail: {userEmail}");
+                
+                if (!string.IsNullOrEmpty(userEmail))
+                {
+                    currentUser = await AuthService.GetCurrentUserAsync(userEmail);
+                    Console.WriteLine($"Loaded current user in RestaurantDetail: {currentUser?.Email ?? "null"}");
+                    
+                    // Pre-fill reservation form with user data
+                    if (currentUser != null)
+                    {
+                        reservationModel.CustomerName = currentUser.UserName ?? "";
+                        reservationModel.CustomerEmail = currentUser.Email ?? "";
+                        Console.WriteLine($"Pre-filled form with user data: {reservationModel.CustomerName}, {reservationModel.CustomerEmail}");
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading current user: {ex.Message}");
+        }
+    }
+    
+    private async Task LoadRestaurantAsync()
+    {
+        try
+        {
+            restaurant = await DbContext.Restaurants
+                .FirstOrDefaultAsync(r => r.Id == RestaurantId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading restaurant: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+    
+    private async Task LoadMenuAsync()
+    {
+        try
+        {
+            if (restaurant != null)
+            {
+                menuItems = MenuService.GenerateMenuForRestaurant(restaurant, currentUser);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading menu: {ex.Message}");
+        }
+    }
+    
+    private async Task LoadFavoriteStatusAsync()
+    {
+        try
+        {
+            if (currentUser != null && restaurant != null)
+            {
+                userFavorites = await FavoriteService.IsFavoriteAsync(currentUser.Id, restaurant.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading favorite status: {ex.Message}");
+        }
+    }
+    
+    private bool IsFavorite(int restaurantId)
+    {
+        return userFavorites;
+    }
+    
+    private async Task ToggleFavorite(int restaurantId)
+    {
+        try
+        {
+            if (currentUser == null) return;
+            
+            var success = await FavoriteService.ToggleFavoriteAsync(currentUser.Id, restaurantId);
+            if (success)
+            {
+                userFavorites = !userFavorites;
+                
+                // Refresh the favorites dropdown in the main layout
+                try
+                {
+                    await JSRuntime.InvokeVoidAsync("window.refreshFavorites");
+                }
+                catch (Exception jsEx)
+                {
+                    Console.WriteLine($"Error refreshing favorites: {jsEx.Message}");
+                    // Non-critical error, continue without refreshing
+                }
+                
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error toggling favorite: {ex.Message}");
+        }
+    }
+    
+    private void HandleInvalidSubmit()
+    {
+        Console.WriteLine("Form validation failed!");
+        // The ValidationSummary will show the specific validation errors
+    }
+
+
+
+    private async Task CreateReservation()
+    {
+        try
+        {
+            Console.WriteLine("CreateReservation method called!");
+            if (currentUser == null || restaurant == null) 
+            {
+                Console.WriteLine("Current user or restaurant is null");
+                return;
+            }
+            
+            isSubmittingReservation = true;
+            StateHasChanged();
+            
+            var reservation = new Reservation
+            {
+                UserId = currentUser.Id,
+                RestaurantId = restaurant.Id,
+                ReservationDateTime = reservationModel.ReservationDateTime,
+                NumberOfGuests = reservationModel.NumberOfGuests,
+                CustomerName = reservationModel.CustomerName,
+                CustomerPhone = reservationModel.CustomerPhone,
+                CustomerEmail = reservationModel.CustomerEmail,
+                SpecialRequests = reservationModel.SpecialRequests ?? ""
+            };
+            
+            var createdReservation = await ReservationService.CreateReservationAsync(reservation);
+            
+            if (createdReservation != null)
+            {
+                // Show success message with more details
+                await JSRuntime.InvokeVoidAsync("alert", 
+                    $"🎉 Reservation created successfully!\n\n" +
+                    $"Restaurant: {restaurant.Name}\n" +
+                    $"Date: {reservationModel.ReservationDateTime:dddd, MMMM dd, yyyy}\n" +
+                    $"Time: {reservationModel.ReservationDateTime:h:mm tt}\n" +
+                    $"Guests: {reservationModel.NumberOfGuests}\n" +
+                    $"Reservation ID: #{createdReservation.Id}\n\n" +
+                    $"📧 A confirmation email has been sent to {reservationModel.CustomerEmail}\n" +
+                    $"You'll be redirected to your profile to view your reservation.");
+                
+                // Wait a moment then redirect to profile
+                await Task.Delay(1000);
+                NavigationManager.NavigateTo("/profile");
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Sorry, this time slot is not available. Please choose a different time.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating reservation: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", "An error occurred while creating your reservation. Please try again.");
+        }
+        finally
+        {
+            isSubmittingReservation = false;
+            StateHasChanged();
+        }
+    }
+    
+    // Helper methods
+    private string GetRestaurantImageUrl(Restaurant restaurant)
+    {
+        var localImages = new[] { 
+            "food1.jpg", "food2.jpg", "food3.jpg", "food4.jpg",
+            "food5.jpg", "food6.jpg", "food7.jpg", "food8.jpg",
+            "food9.jpg", "food10.jpg", "food11.jpg", "food12.jpg",
+            "food13.jpg", "food14.jpg", "food15.jpg", "food16.jpg"
+        };
+        var idx = Math.Abs(restaurant.Name.GetHashCode()) % localImages.Length;
+        return $"images/restaurants/{localImages[idx]}";
+    }
+    
+    private double GetRestaurantRating(Restaurant restaurant)
+    {
+        // Generate consistent rating based on restaurant name hash
+        var hash = Math.Abs(restaurant.Name.GetHashCode());
+        var rating = 3.5 + (hash % 16) / 10.0; // Rating between 3.5 and 5.0
+        return Math.Round(rating, 1);
+    }
+    
+    private string GetRestaurantDescription(Restaurant restaurant)
+    {
+        if (!string.IsNullOrEmpty(restaurant.Description))
+            return restaurant.Description;
+            
+        return "Experience exceptional dining with carefully crafted dishes using fresh, local ingredients. Our chefs are dedicated to providing you with an unforgettable culinary experience.";
+    }
+    
+    private string GetCategoryDisplayName(MenuCategory category)
+    {
+        return category switch
+        {
+            MenuCategory.Appetizer => "Appetizers",
+            MenuCategory.Soup => "Soups",
+            MenuCategory.Salad => "Salads",
+            MenuCategory.MainCourse => "Main Courses",
+            MenuCategory.SideDish => "Side Dishes",
+            MenuCategory.Dessert => "Desserts",
+            MenuCategory.Beverage => "Beverages",
+            MenuCategory.Alcohol => "Alcoholic Beverages",
+            MenuCategory.Special => "Chef's Specials",
+            _ => category.ToString()
+        };
+    }
+    
+    private string GetCategoryIcon(MenuCategory category)
+    {
+        return category switch
+        {
+            MenuCategory.Appetizer => "seedling",
+            MenuCategory.Soup => "bowl-food",
+            MenuCategory.Salad => "leaf",
+            MenuCategory.MainCourse => "drumstick-bite",
+            MenuCategory.SideDish => "carrot",
+            MenuCategory.Dessert => "birthday-cake",
+            MenuCategory.Beverage => "coffee",
+            MenuCategory.Alcohol => "wine-glass",
+            MenuCategory.Special => "star",
+            _ => "utensils"
+        };
+    }
+    
+    private string GetCuisineTypesDisplay(Restaurant restaurant)
+    {
+        if (restaurant.CuisineTypes?.Any() == true)
+        {
+            return string.Join(", ", restaurant.CuisineTypes.Select(c => c.ToString()));
+        }
+        return "International";
+    }
+    
+    private string GetPriceRangeDisplay(Restaurant restaurant)
+    {
+        if (!string.IsNullOrEmpty(restaurant.PriceRange))
+            return restaurant.PriceRange;
+            
+        // Generate based on restaurant name
+        var name = restaurant.Name.ToLower();
+        if (name.Contains("fine") || name.Contains("luxury")) return "€€€€";
+        if (name.Contains("bistro") || name.Contains("restaurant")) return "€€€";
+        if (name.Contains("fast") || name.Contains("quick")) return "€";
+        return "€€";
+    }
+    
+    private async Task LoadReviewsAsync()
+    {
+        try
+        {
+            restaurantReviews = await DbContext.RestaurantReviews
+                .Include(r => r.User)
+                .Where(r => r.RestaurantId == RestaurantId)
+                .ToListAsync();
+
+            if (restaurantReviews.Any())
+            {
+                averageRating = restaurantReviews.Average(r => r.Rating);
+            }
+
+            // Check if current user has already reviewed this restaurant
+            if (currentUser != null)
+            {
+                hasUserReviewed = restaurantReviews.Any(r => r.UserId == currentUser.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading reviews: {ex.Message}");
+            restaurantReviews = new List<RestaurantReview>();
+        }
+    }
+
+    private async Task LoadReservationCountAsync()
+    {
+        try
+        {
+            reservationCount = await DbContext.Reservations
+                .Where(r => r.RestaurantId == RestaurantId)
+                .CountAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading reservation count: {ex.Message}");
+            reservationCount = 0;
+        }
+    }
+
+    private async Task SubmitReview()
+    {
+        if (currentUser == null || restaurant == null) return;
+
+        try
+        {
+            isSubmittingReview = true;
+            StateHasChanged();
+
+            var review = new RestaurantReview
+            {
+                UserId = currentUser.Id,
+                RestaurantId = restaurant.Id,
+                Rating = reviewModel.Rating,
+                Title = reviewModel.Title,
+                Comment = reviewModel.Comment,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            DbContext.RestaurantReviews.Add(review);
+            await DbContext.SaveChangesAsync();
+
+            // Reload reviews to show the new one
+            await LoadReviewsAsync();
+            
+            // Reset form
+            reviewModel = new ReviewModel();
+            
+            await JSRuntime.InvokeVoidAsync("alert", "Thank you for your review! It has been posted successfully.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error submitting review: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", "An error occurred while submitting your review. Please try again.");
+        }
+        finally
+        {
+            isSubmittingReview = false;
+            StateHasChanged();
+        }
+    }
+
+    public class ReservationModel
+    {
+        [Required]
+        public DateTime ReservationDateTime { get; set; } = DateTime.Now.AddHours(2);
+        
+        [Required]
+        [Range(1, 20)]
+        public int NumberOfGuests { get; set; } = 2;
+        
+        [Required]
+        [StringLength(100)]
+        public string CustomerName { get; set; } = "";
+        
+        [Required]
+        [RegularExpression(@"^[\+]?[1-9][\d]{0,15}$|^[\+]?[(]?[\d\s\-\(\)]{10,}$", ErrorMessage = "Please enter a valid phone number")]
+        public string CustomerPhone { get; set; } = "";
+        
+        [Required]
+        [EmailAddress]
+        public string CustomerEmail { get; set; } = "";
+        
+        [StringLength(500)]
+        public string? SpecialRequests { get; set; }
+    }
+
+    public class ReviewModel
+    {
+        [Required]
+        [Range(1, 5, ErrorMessage = "Please select a rating")]
+        public int Rating { get; set; }
+
+        [Required]
+        [StringLength(100, ErrorMessage = "Title cannot exceed 100 characters")]
+        public string Title { get; set; } = "";
+
+        [Required]
+        [StringLength(1000, MinimumLength = 10, ErrorMessage = "Review must be between 10 and 1000 characters")]
+        public string Comment { get; set; } = "";
+    }
+} 

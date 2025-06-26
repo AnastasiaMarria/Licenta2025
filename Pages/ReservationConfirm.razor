@@ -1,0 +1,274 @@
+@page "/reservation/confirm/{reservationId:int}"
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@using Microsoft.EntityFrameworkCore
+@using DineSure.Data
+@using DineSure.Models
+
+<PageTitle>Confirm Reservation</PageTitle>
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            @if (isLoading)
+            {
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Processing your confirmation...</p>
+                </div>
+            }
+            else if (reservation == null)
+            {
+                <div class="alert alert-danger">
+                    <h4>❌ Reservation Not Found</h4>
+                    <p>The reservation you're trying to confirm could not be found or may have already been processed.</p>
+                    <a href="/restaurants" class="btn btn-primary">Browse Restaurants</a>
+                </div>
+            }
+            else if (reservation.Status == ReservationStatus.Confirmed)
+            {
+                <div class="alert alert-success">
+                    <h4>✅ Already Confirmed</h4>
+                    <p>This reservation has already been confirmed.</p>
+                </div>
+                <div class="reservation-details bg-light p-3 rounded mb-3">
+                    <h5 class="text-primary mb-3">Reservation Details</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Restaurant:</strong> @reservation.Restaurant?.Name</p>
+                            <p><strong>Date:</strong> @reservation.ReservationDateTime.ToString("dddd, MMMM dd, yyyy")</p>
+                            <p><strong>Time:</strong> @reservation.ReservationDateTime.ToString("h:mm tt")</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Guests:</strong> @reservation.NumberOfGuests</p>
+                            <p><strong>Name:</strong> @reservation.CustomerName</p>
+                            <p><strong>Status:</strong> 
+                                <span class="badge bg-@GetStatusColor(reservation.Status)">
+                                    @reservation.Status
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(reservation.SpecialRequests))
+                    {
+                        <p><strong>Special Requests:</strong> @reservation.SpecialRequests</p>
+                    }
+                </div>
+            }
+            else if (reservation.Status == ReservationStatus.Cancelled)
+            {
+                <div class="alert alert-warning">
+                    <h4>❌ Reservation Cancelled</h4>
+                    <p>This reservation has been cancelled and cannot be confirmed.</p>
+                </div>
+            }
+            else if (confirmationSuccess)
+            {
+                <div class="alert alert-success">
+                    <h4>🎉 Reservation Confirmed!</h4>
+                    <p>Your reservation has been successfully confirmed. You can expect to hear from the restaurant soon.</p>
+                </div>
+                <div class="reservation-details bg-light p-3 rounded mb-3">
+                    <h5 class="text-primary mb-3">Reservation Details</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Restaurant:</strong> @reservation.Restaurant?.Name</p>
+                            <p><strong>Date:</strong> @reservation.ReservationDateTime.ToString("dddd, MMMM dd, yyyy")</p>
+                            <p><strong>Time:</strong> @reservation.ReservationDateTime.ToString("h:mm tt")</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Guests:</strong> @reservation.NumberOfGuests</p>
+                            <p><strong>Name:</strong> @reservation.CustomerName</p>
+                            <p><strong>Status:</strong> 
+                                <span class="badge bg-@GetStatusColor(reservation.Status)">
+                                    @reservation.Status
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(reservation.SpecialRequests))
+                    {
+                        <p><strong>Special Requests:</strong> @reservation.SpecialRequests</p>
+                    }
+                </div>
+                
+                <div class="text-center mt-4">
+                    <a href="/profile" class="btn btn-primary">View My Reservations</a>
+                    <a href="/restaurants" class="btn btn-outline-secondary">Browse More Restaurants</a>
+                </div>
+            }
+            else
+            {
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">📧 Confirm Your Reservation</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="reservation-details bg-light p-3 rounded mb-3">
+                            <h5 class="text-primary mb-3">Reservation Details</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Restaurant:</strong> @reservation.Restaurant?.Name</p>
+                                    <p><strong>Date:</strong> @reservation.ReservationDateTime.ToString("dddd, MMMM dd, yyyy")</p>
+                                    <p><strong>Time:</strong> @reservation.ReservationDateTime.ToString("h:mm tt")</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Guests:</strong> @reservation.NumberOfGuests</p>
+                                    <p><strong>Name:</strong> @reservation.CustomerName</p>
+                                    <p><strong>Status:</strong> 
+                                        <span class="badge bg-@GetStatusColor(reservation.Status)">
+                                            @reservation.Status
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
+                            @if (!string.IsNullOrEmpty(reservation.SpecialRequests))
+                            {
+                                <p><strong>Special Requests:</strong> @reservation.SpecialRequests</p>
+                            }
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <strong>Please confirm:</strong> By clicking "Confirm Reservation" below, you are finalizing your booking. The restaurant will be notified and your table will be reserved.
+                        </div>
+                        
+                        <div class="text-center">
+                            <button class="btn btn-success btn-lg me-3" @onclick="ConfirmReservation" disabled="@isProcessing">
+                                @if (isProcessing)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                ✅ Confirm Reservation
+                            </button>
+                            <button class="btn btn-danger btn-lg" @onclick="CancelReservation" disabled="@isProcessing">
+                                @if (isProcessing)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                ❌ Cancel Reservation
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int ReservationId { get; set; }
+    
+    private Reservation? reservation;
+    private bool isLoading = true;
+    private bool isProcessing = false;
+    private bool confirmationSuccess = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadReservation();
+    }
+
+    private async Task LoadReservation()
+    {
+        try
+        {
+            reservation = await DbContext.Reservations
+                .Include(r => r.Restaurant)
+                .FirstOrDefaultAsync(r => r.Id == ReservationId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading reservation: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ConfirmReservation()
+    {
+        if (reservation == null) return;
+        
+        isProcessing = true;
+        try
+        {
+            reservation.Status = ReservationStatus.Confirmed;
+            reservation.UpdatedAt = DateTime.UtcNow;
+            
+            await DbContext.SaveChangesAsync();
+            confirmationSuccess = true;
+            
+            await JSRuntime.InvokeVoidAsync("alert", "Reservation confirmed successfully! The restaurant has been notified.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error confirming reservation: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", "An error occurred while confirming your reservation. Please try again.");
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task CancelReservation()
+    {
+        if (reservation == null) return;
+        
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to cancel this reservation?");
+        if (!confirmed) return;
+        
+        isProcessing = true;
+        try
+        {
+            reservation.Status = ReservationStatus.Cancelled;
+            reservation.UpdatedAt = DateTime.UtcNow;
+            
+            await DbContext.SaveChangesAsync();
+            
+            await JSRuntime.InvokeVoidAsync("alert", "Reservation cancelled successfully.");
+            NavigationManager.NavigateTo("/restaurants");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cancelling reservation: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", "An error occurred while cancelling your reservation. Please try again.");
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private string GetStatusColor(ReservationStatus status)
+    {
+        return status switch
+        {
+            ReservationStatus.Pending => "warning",
+            ReservationStatus.Confirmed => "success",
+            ReservationStatus.Cancelled => "danger",
+            ReservationStatus.Completed => "info",
+            ReservationStatus.NoShow => "secondary",
+            _ => "secondary"
+        };
+    }
+}
+
+<style>
+    .reservation-details {
+        border-left: 4px solid #007bff;
+    }
+    
+    .card-header {
+        border-bottom: 1px solid rgba(0,0,0,.125);
+    }
+    
+    .btn-lg {
+        padding: 0.75rem 1.5rem;
+        font-size: 1.1rem;
+    }
+</style> 

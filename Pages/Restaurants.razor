@@ -1,0 +1,1541 @@
+@page "/restaurants"
+@layout MainLayout
+@using DineSure.Models
+@using DineSure.Data
+@using DineSure.Services
+@using Microsoft.AspNetCore.Components
+@using Microsoft.EntityFrameworkCore
+@inject OverpassRestaurantService OverpassService
+@inject ApplicationDbContext DbContext
+@inject AuthService AuthService
+@inject FavoriteService FavoriteService
+@inject IJSRuntime JSRuntime
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Restaurants in Bucharest - DineSure</PageTitle>
+
+<style>
+    /* Inline CSS for immediate grid layout enforcement */
+    .restaurant-cards-container {
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 28px !important;
+        margin: 32px auto !important;
+        padding: 20px !important;
+        max-width: 1400px !important;
+        width: 100% !important;
+    }
+    
+    .restaurant-card-modern {
+        background: #ffffff !important;
+        border: 3px solid #dee2e6 !important;
+        border-radius: 18px !important;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12), 0 4px 10px rgba(0, 0, 0, 0.06) !important;
+        transition: all 0.4s ease !important;
+        overflow: hidden !important;
+        cursor: pointer !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .restaurant-card-modern:hover {
+        transform: translateY(-15px) !important;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.18), 0 8px 16px rgba(0, 0, 0, 0.1) !important;
+        border-color: #007bff !important;
+        background: #fafbfc !important;
+    }
+    
+    /* Restaurant Image with Perfect Aspect Ratio */
+    .restaurant-image-container {
+        position: relative !important;
+        width: 100% !important;
+        aspect-ratio: 4/3 !important; /* 4:3 aspect ratio for consistent card appearance */
+        overflow: hidden !important;
+        border-radius: 15px 15px 0 0 !important;
+    }
+    
+    .restaurant-image {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        object-position: center !important;
+        transition: transform 0.5s ease !important;
+    }
+    
+    .restaurant-card-modern:hover .restaurant-image {
+        transform: scale(1.05) !important;
+    }
+    
+    /* Favorite Heart Button */
+    .favorite-btn {
+        position: absolute !important;
+        top: 15px !important;
+        right: 15px !important;
+        background: rgba(255, 255, 255, 0.9) !important;
+        border: none !important;
+        border-radius: 50% !important;
+        width: 40px !important;
+        height: 40px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        cursor: pointer !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+        z-index: 10 !important;
+    }
+    
+    .favorite-btn:hover {
+        background: rgba(255, 255, 255, 1) !important;
+        transform: scale(1.1) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+    }
+    
+    .favorite-btn i {
+        color: #dc3545 !important;
+        font-size: 18px !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .favorite-btn.is-favorite i {
+        color: #dc3545 !important;
+        animation: heartBeat 0.6s ease !important;
+    }
+    
+    .favorite-btn:not(.is-favorite) i {
+        color: #6c757d !important;
+    }
+    
+    @@keyframes heartBeat {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.3); }
+        100% { transform: scale(1); }
+    }
+</style>
+
+<div class="restaurants-page">
+    <!-- Header Section -->
+    <div class="restaurants-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <h1 class="page-title">
+                        <i class="fas fa-utensils me-3"></i>
+                        Restaurants in Bucharest
+                    </h1>
+                    <p class="page-subtitle">
+                        Discover @filteredRestaurants.Count restaurants from real OpenStreetMap data
+                    </p>
+                </div>
+                <div class="col-lg-4 text-lg-end">
+                    <div class="view-toggle">
+                        <button class="btn @(showMap ? "btn-outline-primary" : "btn-primary")" @onclick="() => ToggleView(false)">
+                            <i class="fas fa-list me-1"></i>List View
+                        </button>
+                        <button class="btn @(showMap ? "btn-primary" : "btn-outline-primary")" @onclick="() => ToggleView(true)">
+                            <i class="fas fa-map me-1"></i>Map View
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="search-section bg-light py-4">
+        <div class="container">
+            <!-- Main Search Header -->
+            <div class="row mb-4">
+                <div class="col-12 text-center">
+                    <h2 class="search-title">Find restaurants in Bucharest</h2>
+                    <p class="search-subtitle">Discover restaurants that match your dietary needs</p>
+                </div>
+            </div>
+
+            <!-- Filter Row -->
+            <div class="row mb-4">
+                <div class="col-lg-4 col-md-6 mb-3">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-utensils me-2"></i>Cuisine Preferences
+                    </label>
+                    <select class="form-select" value="@selectedCuisine" @onchange="@((ChangeEventArgs e) => { selectedCuisine = e.Value?.ToString() ?? ""; ApplyFilters(); })">
+                        <option value="">🍽️ All Cuisine Types</option>
+                        @foreach (var cuisine in availableCuisines)
+                        {
+                            <option value="@cuisine">@GetCuisineDisplayName(cuisine)</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-lg-4 col-md-6 mb-3">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-euro-sign me-2"></i>Price Range
+                    </label>
+                    <select class="form-select" value="@selectedPriceRange" @onchange="@((ChangeEventArgs e) => { selectedPriceRange = e.Value?.ToString() ?? ""; ApplyFilters(); })">
+                        <option value="">💰 Any Price</option>
+                        <option value="budget">€ Budget-Friendly</option>
+                        <option value="moderate">€€ Moderate</option>
+                        <option value="expensive">€€€ Upscale</option>
+                        <option value="fine-dining">€€€€ Fine Dining</option>
+                    </select>
+                </div>
+                <div class="col-lg-4 col-md-6 mb-3">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-star me-2"></i>Min Rating
+                    </label>
+                    <select class="form-select" value="@minRating" @onchange="@((ChangeEventArgs e) => { minRating = int.Parse(e.Value?.ToString() ?? "0"); ApplyFilters(); })">
+                        <option value="0">⭐ Any Rating</option>
+                        <option value="3">⭐⭐⭐ 3+ Stars (Good)</option>
+                        <option value="4">⭐⭐⭐⭐ 4+ Stars (Great)</option>
+                        <option value="5">⭐⭐⭐⭐⭐ 5 Stars (Perfect)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Dietary Preferences Alert -->
+            <AuthorizeView>
+                <NotAuthorized>
+                    <div class="alert alert-info mb-4">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <a href="/login" class="alert-link">Sign In</a> to filter restaurants based on your dietary preferences and allergies
+                    </div>
+                </NotAuthorized>
+                <Authorized>
+                    <!-- Profile-based filtering toggle -->
+                    @if (currentUser != null)
+                    {
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="alert alert-info d-flex align-items-center">
+                                    <i class="fas fa-user-circle me-2"></i>
+                                    <div class="flex-grow-1">
+                                        <strong>Welcome back, @currentUser.UserName!</strong>
+                                        <div class="form-check form-switch mt-2">
+                                            <input class="form-check-input" type="checkbox" checked="@useProfileFiltering" @onchange="@((ChangeEventArgs e) => ToggleProfileFiltering(e.Value?.ToString() == "true"))" id="useProfile">
+                                            <label class="form-check-label" for="useProfile">
+                                                <i class="fas fa-magic me-1"></i>Use my dietary preferences from profile
+                                            </label>
+                                        </div>
+                                        @if (useProfileFiltering && HasUserDietaryRestrictions())
+                                        {
+                                            <small class="text-muted d-block mt-1">
+                                                Active filters from your profile: @GetUserDietaryRestrictionsText()
+                                            </small>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <label class="form-label fw-bold">
+                                <i class="fas fa-leaf me-2"></i>Dietary & Health Preferences
+                            </label>
+                            
+                            <!-- Dietary Types -->
+                            <div class="mb-3">
+                                <small class="text-muted d-block mb-2">Dietary Types:</small>
+                                <div class="dietary-filters">
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" checked="@filterVegetarian" @onchange="@((ChangeEventArgs e) => { filterVegetarian = e.Value?.ToString() == "true"; ApplyFilters(); })" id="vegetarian">
+                                        <label class="form-check-label" for="vegetarian">🥬 Vegetarian</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" checked="@filterVegan" @onchange="@((ChangeEventArgs e) => { filterVegan = e.Value?.ToString() == "true"; ApplyFilters(); })" id="vegan">
+                                        <label class="form-check-label" for="vegan">🌱 Vegan</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" checked="@filterPescatarian" @onchange="@((ChangeEventArgs e) => { filterPescatarian = e.Value?.ToString() == "true"; ApplyFilters(); })" id="pescatarian">
+                                        <label class="form-check-label" for="pescatarian">🐟 Pescatarian</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Health Conditions -->
+                            <div class="mb-3">
+                                <small class="text-muted d-block mb-2">Health & Medical Needs:</small>
+                                <div class="dietary-filters">
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" checked="@filterGlutenFree" @onchange="@((ChangeEventArgs e) => { filterGlutenFree = e.Value?.ToString() == "true"; ApplyFilters(); })" id="glutenFree">
+                                        <label class="form-check-label" for="glutenFree">🌾 Gluten-Free</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" checked="@filterLactoseFree" @onchange="@((ChangeEventArgs e) => { filterLactoseFree = e.Value?.ToString() == "true"; ApplyFilters(); })" id="lactoseFree">
+                                        <label class="form-check-label" for="lactoseFree">🥛 Lactose-Free</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" checked="@filterDiabeticFriendly" @onchange="@((ChangeEventArgs e) => { filterDiabeticFriendly = e.Value?.ToString() == "true"; ApplyFilters(); })" id="diabeticFriendly">
+                                        <label class="form-check-label" for="diabeticFriendly">💊 Diabetic-Friendly</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" checked="@filterPureeFoods" @onchange="@((ChangeEventArgs e) => { filterPureeFoods = e.Value?.ToString() == "true"; ApplyFilters(); })" id="pureeFoods">
+                                        <label class="form-check-label" for="pureeFoods">🥄 Puree Foods</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Allergy Filters -->
+                            <div class="mb-3">
+                                <small class="text-muted d-block mb-2">Allergy-Free Options:</small>
+                                <div class="dietary-filters">
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" checked="@filterNutFree" @onchange="@((ChangeEventArgs e) => { filterNutFree = e.Value?.ToString() == "true"; ApplyFilters(); })" id="nutFree">
+                                        <label class="form-check-label" for="nutFree">🥜 Nut-Free</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" checked="@filterEggFree" @onchange="@((ChangeEventArgs e) => { filterEggFree = e.Value?.ToString() == "true"; ApplyFilters(); })" id="eggFree">
+                                        <label class="form-check-label" for="eggFree">🥚 Egg-Free</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" checked="@filterHoneyFree" @onchange="@((ChangeEventArgs e) => { filterHoneyFree = e.Value?.ToString() == "true"; ApplyFilters(); })" id="honeyFree">
+                                        <label class="form-check-label" for="honeyFree">🍯 Honey-Free</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" checked="@filterShellfishFree" @onchange="@((ChangeEventArgs e) => { filterShellfishFree = e.Value?.ToString() == "true"; ApplyFilters(); })" id="shellfishFree">
+                                        <label class="form-check-label" for="shellfishFree">🦐 Shellfish-Free</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+
+            <!-- Search Bar -->
+            <div class="row mb-4">
+                <div class="col-lg-8 mb-3">
+                    <div class="search-box">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" 
+                               class="form-control search-input" 
+                               placeholder="🔍 Search restaurants by name or address..." 
+                               @bind="searchTerm" 
+                               @bind:event="oninput"
+                               @onkeypress="OnSearchKeyPress" />
+                        @if (!string.IsNullOrEmpty(searchTerm))
+                        {
+                            <button class="btn btn-link clear-search" @onclick="ClearSearch">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        }
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-6 mb-3">
+                    <button class="btn btn-primary w-100 search-btn" @onclick="ApplyFilters">
+                        <i class="fas fa-search me-1"></i>Search Restaurants
+                    </button>
+                </div>
+                <div class="col-lg-2 col-md-6 mb-3">
+                    <button class="btn btn-outline-secondary w-100" @onclick="ClearAllFilters">
+                        <i class="fas fa-eraser me-1"></i>Clear Filters
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Cuisine Filters -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="quick-filters">
+                        <span class="quick-filter-label">Quick cuisine filters:</span>
+                        <button class="btn btn-outline-primary btn-sm quick-filter-btn @(selectedCuisine == "Romanian" ? "active" : "")" 
+                                @onclick='() => SetQuickFilter("Romanian")'>
+                            🇷🇴 Romanian
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm quick-filter-btn @(selectedCuisine == "Italian" ? "active" : "")" 
+                                @onclick='() => SetQuickFilter("Italian")'>
+                            🇮🇹 Italian
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm quick-filter-btn @(selectedCuisine == "Japanese" ? "active" : "")" 
+                                @onclick='() => SetQuickFilter("Japanese")'>
+                            🇯🇵 Japanese
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm quick-filter-btn @(selectedCuisine == "Chinese" ? "active" : "")" 
+                                @onclick='() => SetQuickFilter("Chinese")'>
+                            🇨🇳 Chinese
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm quick-filter-btn @(selectedCuisine == "French" ? "active" : "")" 
+                                @onclick='() => SetQuickFilter("French")'>
+                            🇫🇷 French
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            @if (!string.IsNullOrEmpty(searchTerm) || !string.IsNullOrEmpty(selectedCuisine) || !string.IsNullOrEmpty(selectedPriceRange) || minRating > 0 || HasDietaryFilters())
+            {
+                <div class="search-results-info mt-3">
+                    <span class="badge bg-info fs-6">
+                        @filteredRestaurants.Count results found
+                    </span>
+                    <span class="active-filters ms-2">
+                        @if (!string.IsNullOrEmpty(searchTerm))
+                        {
+                            <span class="badge bg-secondary me-1">Search: "@searchTerm"</span>
+                        }
+                        @if (!string.IsNullOrEmpty(selectedCuisine))
+                        {
+                            <span class="badge bg-secondary me-1">Cuisine: @selectedCuisine</span>
+                        }
+                        @if (!string.IsNullOrEmpty(selectedPriceRange))
+                        {
+                            <span class="badge bg-secondary me-1">Price: @GetPriceRangeDisplayName(selectedPriceRange)</span>
+                        }
+                        @if (minRating > 0)
+                        {
+                            <span class="badge bg-secondary me-1">Min Rating: @minRating⭐</span>
+                        }
+                        @if (HasDietaryFilters())
+                        {
+                            @if (filterVegetarian) { <span class="badge bg-success me-1">🥬 Vegetarian</span> }
+                            @if (filterVegan) { <span class="badge bg-success me-1">🌱 Vegan</span> }
+                            @if (filterPescatarian) { <span class="badge bg-success me-1">🐟 Pescatarian</span> }
+                            @if (filterGlutenFree) { <span class="badge bg-success me-1">🌾 Gluten-Free</span> }
+                            @if (filterLactoseFree) { <span class="badge bg-success me-1">🥛 Lactose-Free</span> }
+                            @if (filterDiabeticFriendly) { <span class="badge bg-success me-1">💊 Diabetic-Friendly</span> }
+                            @if (filterPureeFoods) { <span class="badge bg-success me-1">🥄 Puree Foods</span> }
+                            @if (filterNutFree) { <span class="badge bg-warning me-1">🥜 Nut-Free</span> }
+                            @if (filterEggFree) { <span class="badge bg-warning me-1">🥚 Egg-Free</span> }
+                            @if (filterHoneyFree) { <span class="badge bg-warning me-1">🍯 Honey-Free</span> }
+                            @if (filterShellfishFree) { <span class="badge bg-warning me-1">🦐 Shellfish-Free</span> }
+                        }
+                    </span>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Content Area -->
+    <div class="content-section py-4">
+        <div class="container-fluid">
+            @if (isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3 text-muted">Loading restaurants from OpenStreetMap...</p>
+                </div>
+            }
+            else if (showMap)
+            {
+                <!-- Map View -->
+                <div class="row">
+                    <div class="col-lg-8">
+                        <div class="map-container">
+                            <div id="restaurantMap" style="height: 600px; width: 100%; border-radius: 8px;"></div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="map-sidebar">
+                            <h5 class="sidebar-title">
+                                <i class="fas fa-list me-2"></i>
+                                Restaurants (@filteredRestaurants.Count)
+                            </h5>
+                            <div class="restaurant-list-sidebar">
+                                @foreach (var restaurant in filteredRestaurants.Take(50))
+                                {
+                                    <div class="restaurant-card-mini @(selectedRestaurant?.Name == restaurant.Name ? "selected" : "")" 
+                                         @onclick="() => SelectRestaurant(restaurant)">
+                                        <h6 class="restaurant-name">@restaurant.Name</h6>
+                                        <p class="restaurant-address">
+                                            <i class="fas fa-map-marker-alt me-1"></i>@restaurant.Address
+                                        </p>
+                                        @if (!string.IsNullOrEmpty(restaurant.PhoneNumber))
+                                        {
+                                            <p class="restaurant-phone">
+                                                <i class="fas fa-phone me-1"></i>@restaurant.PhoneNumber
+                                            </p>
+                                        }
+                                    </div>
+                                }
+                                @if (filteredRestaurants.Count > 50)
+                                {
+                                    <div class="text-center py-2">
+                                        <small class="text-muted">Showing first 50 results. Use search to narrow down.</small>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <!-- List View -->
+                @if (filteredRestaurants.Count == 0)
+                {
+                    <div class="text-center py-5">
+                        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                        <h4 class="text-muted">No restaurants found</h4>
+                        <p class="text-muted">
+                            @if (string.IsNullOrEmpty(searchTerm))
+                            {
+                                <span>Try refreshing the data or check your connection.</span>
+                            }
+                            else
+                            {
+                                <span>Try adjusting your search term.</span>
+                            }
+                        </p>
+                        @if (!string.IsNullOrEmpty(searchTerm))
+                        {
+                            <button class="btn btn-outline-primary" @onclick="ClearSearch">Clear Search</button>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="restaurant-cards-container">
+                        @foreach (var restaurant in filteredRestaurants.Skip((currentPage - 1) * pageSize).Take(pageSize))
+                        {
+                            <div class="restaurant-card-modern">
+                                <div class="restaurant-image-container">
+                                    <img src="@GetRestaurantImageUrl(restaurant)" alt="@restaurant.Name" class="restaurant-image" />
+                                    <div class="restaurant-overlay">
+                                        <span class="restaurant-type">@GetRestaurantType(restaurant.Name)</span>
+                                    </div>
+                                    
+                                    <!-- Favorite Heart Icon - Available for all users -->
+                                    <button class="favorite-btn @(IsFavorite(restaurant.Id) ? "is-favorite" : "")" 
+                                            @onclick="@(async () => await ToggleFavorite(restaurant.Id))"
+                                            @onclick:stopPropagation="true"
+                                            title="@(IsFavorite(restaurant.Id) ? "Remove from favorites" : "Add to favorites")">
+                                        <i class="@(IsFavorite(restaurant.Id) ? "fas" : "far") fa-heart"></i>
+                                    </button>
+                                    
+                                    @if (HasDietaryOptions(restaurant))
+                                    {
+                                        <div class="dietary-badges">
+                                            @if (GetRandomDietaryOption(restaurant, "vegetarian")) { <span class="dietary-badge vegetarian">🥬</span> }
+                                            @if (GetRandomDietaryOption(restaurant, "vegan")) { <span class="dietary-badge vegan">🌱</span> }
+                                            @if (GetRandomDietaryOption(restaurant, "gluten-free")) { <span class="dietary-badge gluten-free">🌾</span> }
+                                        </div>
+                                    }
+                                </div>
+                                
+                                <div class="restaurant-info">
+                                    <div class="restaurant-header">
+                                        <h3 class="restaurant-name">@restaurant.Name</h3>
+                                        <div class="restaurant-rating">
+                                            @for (int i = 1; i <= 5; i++)
+                                            {
+                                                <i class="@(i <= GetRandomRating(restaurant) ? "fas" : "far") fa-star"></i>
+                                            }
+                                            <span class="rating-text">(@GetRandomRating(restaurant).ToString("0.0"))</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <p class="restaurant-location">
+                                        <i class="fas fa-map-marker-alt"></i>
+                                        @GetShortAddress(restaurant.Address ?? "Bucharest")
+                                    </p>
+                                    
+                                    <div class="restaurant-meta">
+                                        <div class="price-delivery-info">
+                                            <span class="price-range">@GetPriceRange(restaurant)</span>
+                                            <span class="delivery-time">
+                                                <i class="fas fa-clock"></i>
+                                                @GetRandomDeliveryTime() min
+                                            </span>
+                                        </div>
+                                        
+                                        <!-- Available Hours -->
+                                        <div class="available-hours">
+                                            <small class="text-muted">
+                                                <i class="fas fa-clock"></i> @GetAvailableHours(restaurant)
+                                            </small>
+                                        </div>
+
+                                        <!-- Dietary Hints -->
+                                        @if (GetDietaryHints(restaurant).Any())
+                                        {
+                                            <div class="dietary-hints">
+                                                <small class="text-success">
+                                                    <i class="fas fa-leaf"></i> 
+                                                    @string.Join(", ", GetDietaryHints(restaurant))
+                                                </small>
+                                            </div>
+                                        }
+                                    </div>
+                                    
+                                    <div class="restaurant-actions">
+                                        @if (!string.IsNullOrEmpty(restaurant.PhoneNumber))
+                                        {
+                                            <button class="btn btn-outline-secondary btn-sm" @onclick="() => CallRestaurant(restaurant.PhoneNumber)">
+                                                <i class="fas fa-phone"></i>
+                                            </button>
+                                        }
+                                        <button class="btn btn-outline-primary btn-sm" @onclick="() => ViewOnMap(restaurant)">
+                                            <i class="fas fa-map-marker-alt"></i>
+                                        </button>
+                                        <button class="btn btn-primary btn-sm flex-grow-1" @onclick="() => ViewRestaurantDetail(restaurant.Id)">
+                                            <i class="fas fa-utensils me-1"></i>View Menu
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    
+                    <!-- Pagination -->
+                    @if (totalPages > 1)
+                    {
+                        <nav aria-label="Restaurant pagination" class="mt-4">
+                            <ul class="pagination justify-content-center">
+                                <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                                    <button class="page-link" @onclick="() => ChangePage(currentPage - 1)" disabled="@(currentPage == 1)">
+                                        <i class="fas fa-chevron-left"></i> Previous
+                                    </button>
+                                </li>
+                                @for (int i = Math.Max(1, currentPage - 2); i <= Math.Min(totalPages, currentPage + 2); i++)
+                                {
+                                    <li class="page-item @(i == currentPage ? "active" : "")">
+                                        <button class="page-link" @onclick="() => ChangePage(i)">@i</button>
+                                    </li>
+                                }
+                                <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                                    <button class="page-link" @onclick="() => ChangePage(currentPage + 1)" disabled="@(currentPage == totalPages)">
+                                        Next <i class="fas fa-chevron-right"></i>
+                                    </button>
+                                </li>
+                            </ul>
+                        </nav>
+                    }
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Restaurant> allRestaurants = new();
+    private List<Restaurant> filteredRestaurants = new();
+    private List<string> availableCuisines = new();
+    private Restaurant? selectedRestaurant = null;
+    
+    private string searchTerm = "";
+    private string selectedCuisine = "";
+    private string selectedPriceRange = "";
+    private int minRating = 0;
+    
+    // Dietary filter properties
+    private bool filterVegetarian = false;
+    private bool filterVegan = false;
+    private bool filterPescatarian = false;
+    private bool filterGlutenFree = false;
+    private bool filterLactoseFree = false;
+    private bool filterDiabeticFriendly = false;
+    private bool filterPureeFoods = false;
+    
+    // Allergy filter properties
+    private bool filterNutFree = false;
+    private bool filterEggFree = false;
+    private bool filterHoneyFree = false;
+    private bool filterShellfishFree = false;
+    
+    // User profile-based filtering
+    private User? currentUser = null;
+    private bool useProfileFiltering = true;
+    
+    // Favorites tracking for all users (logged-in and anonymous)
+    private Dictionary<int, bool> userFavorites = new();
+    private List<int> localFavorites = new(); // For anonymous users
+    
+    private bool isLoading = true;
+    private bool showMap = false;
+    
+    private int currentPage = 1;
+    private int pageSize = 12;
+    private int totalPages => (int)Math.Ceiling((double)filteredRestaurants.Count / pageSize);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Console.WriteLine("OnInitializedAsync started");
+        
+        await LoadUserProfileAsync();
+        Console.WriteLine($"User profile loaded. Current user: {(currentUser != null ? currentUser.Email : "null")}");
+        
+        await LoadRestaurantsAsync();
+        Console.WriteLine($"Restaurants loaded: {allRestaurants.Count}");
+        
+        await LoadFavoritesAsync(); // Load favorites for both logged-in and anonymous users
+        Console.WriteLine($"Favorites loaded: {userFavorites.Count}");
+        
+        // Check if there's a search parameter in the URL
+        var uri = new Uri(NavigationManager.Uri);
+        var queryParams = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        if (queryParams.TryGetValue("search", out var searchValues))
+        {
+            searchTerm = searchValues.FirstOrDefault() ?? "";
+            ApplyFilters();
+        }
+        
+        Console.WriteLine("OnInitializedAsync completed");
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Don't initialize map on first render to prevent JS errors
+        if (!firstRender && showMap && filteredRestaurants.Any())
+        {
+            await Task.Delay(200);
+            await InitializeMap();
+        }
+    }
+
+    private async Task LoadUserProfileAsync()
+    {
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            Console.WriteLine($"Auth state - IsAuthenticated: {authState.User.Identity?.IsAuthenticated}");
+            
+            if (authState.User.Identity?.IsAuthenticated == true)
+            {
+                var userEmail = authState.User.FindFirst("email")?.Value ?? 
+                               authState.User.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress")?.Value ??
+                               authState.User.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name")?.Value;
+                               
+                Console.WriteLine($"Found user email: {userEmail}");
+                
+                if (!string.IsNullOrEmpty(userEmail))
+                {
+                    currentUser = await AuthService.GetCurrentUserAsync(userEmail);
+                    Console.WriteLine($"Loaded current user: {(currentUser != null ? currentUser.Email : "null")}");
+                    
+                    if (currentUser != null && useProfileFiltering)
+                    {
+                        ApplyUserProfileFilters();
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading user profile: {ex.Message}");
+        }
+    }
+
+    private void ApplyUserProfileFilters()
+    {
+        if (currentUser == null) return;
+
+        // Apply dietary type filters
+        switch (currentUser.DietaryType)
+        {
+            case DietaryType.Vegetarian:
+                filterVegetarian = true;
+                break;
+            case DietaryType.Vegan:
+                filterVegan = true;
+                filterVegetarian = true; // Vegan includes vegetarian
+                break;
+            case DietaryType.Pescatarian:
+                filterPescatarian = true;
+                filterVegetarian = true; // Pescatarian is mostly vegetarian
+                break;
+            case DietaryType.DairyFree:
+                filterLactoseFree = true;
+                break;
+        }
+
+        // Apply health condition filters
+        if (currentUser.IsGlutenFree)
+        {
+            filterGlutenFree = true;
+        }
+
+        if (currentUser.IsLactoseIntolerant)
+        {
+            filterLactoseFree = true;
+        }
+
+        if (currentUser.HasDiabetes)
+        {
+            filterDiabeticFriendly = true;
+        }
+
+        if (currentUser.NeedsPureeFoods)
+        {
+            filterPureeFoods = true;
+        }
+
+        // Apply allergy filters based on user allergies
+        if (currentUser.Allergies != null && currentUser.Allergies.Any(a => a != Allergy.None))
+        {
+            foreach (var allergy in currentUser.Allergies.Where(a => a != Allergy.None))
+            {
+                switch (allergy)
+                {
+                    case Allergy.TreeNuts:
+                    case Allergy.Peanuts:
+                        filterNutFree = true;
+                        break;
+                    case Allergy.Eggs:
+                        filterEggFree = true;
+                        break;
+                    case Allergy.Shellfish:
+                    case Allergy.Molluscs:
+                        filterShellfishFree = true;
+                        break;
+                    case Allergy.Milk:
+                        filterLactoseFree = true;
+                        break;
+                    case Allergy.Wheat:
+                        filterGlutenFree = true;
+                        break;
+                }
+            }
+        }
+
+        // Apply custom dietary restrictions
+        foreach (var restriction in currentUser.DietaryRestrictions)
+        {
+            switch (restriction.ToLower())
+            {
+                case "gluten-free":
+                case "gluten free":
+                    filterGlutenFree = true;
+                    break;
+                case "lactose-free":
+                case "lactose free":
+                case "dairy-free":
+                case "dairy free":
+                    filterLactoseFree = true;
+                    break;
+                case "vegetarian":
+                    filterVegetarian = true;
+                    break;
+                case "vegan":
+                    filterVegan = true;
+                    filterVegetarian = true;
+                    break;
+                case "pescatarian":
+                    filterPescatarian = true;
+                    filterVegetarian = true;
+                    break;
+                case "nut-free":
+                case "nut free":
+                    filterNutFree = true;
+                    break;
+                case "egg-free":
+                case "egg free":
+                    filterEggFree = true;
+                    break;
+                case "honey-free":
+                case "honey free":
+                    filterHoneyFree = true;
+                    break;
+                case "shellfish-free":
+                case "shellfish free":
+                    filterShellfishFree = true;
+                    break;
+            }
+        }
+    }
+
+    private void ToggleProfileFiltering(bool enabled)
+    {
+        useProfileFiltering = enabled;
+        
+        if (enabled && currentUser != null)
+        {
+            // Clear existing filters first
+            ClearAllFilters();
+            // Apply profile-based filters
+            ApplyUserProfileFilters();
+            ApplyFilters();
+        }
+        else
+        {
+            // Clear all filters when disabling profile filtering
+            ClearAllFilters();
+        }
+    }
+
+    private bool HasUserDietaryRestrictions()
+    {
+        if (currentUser == null) return false;
+        
+        return currentUser.DietaryType != DietaryType.None ||
+               currentUser.IsGlutenFree ||
+               currentUser.NeedsPureeFoods ||
+               currentUser.DietaryRestrictions.Any();
+    }
+
+    private string GetUserDietaryRestrictionsText()
+    {
+        if (currentUser == null) return "";
+        
+        var restrictions = new List<string>();
+        
+        // Dietary types
+        switch (currentUser.DietaryType)
+        {
+            case DietaryType.Vegetarian:
+                restrictions.Add("Vegetarian");
+                break;
+            case DietaryType.Vegan:
+                restrictions.Add("Vegan");
+                break;
+            case DietaryType.Pescatarian:
+                restrictions.Add("Pescatarian");
+                break;
+            case DietaryType.DairyFree:
+                restrictions.Add("Dairy-Free");
+                break;
+            case DietaryType.Paleo:
+                restrictions.Add("Paleo");
+                break;
+            case DietaryType.Keto:
+                restrictions.Add("Keto");
+                break;
+            case DietaryType.Mediterranean:
+                restrictions.Add("Mediterranean");
+                break;
+            case DietaryType.LowCarb:
+                restrictions.Add("Low-Carb");
+                break;
+        }
+        
+        // Health conditions
+        if (currentUser.IsGlutenFree) restrictions.Add("Gluten-Free");
+        if (currentUser.IsLactoseIntolerant) restrictions.Add("Lactose-Free");
+        if (currentUser.HasDiabetes) restrictions.Add("Diabetic-Friendly");
+        if (currentUser.NeedsPureeFoods) restrictions.Add("Puree Foods");
+        
+        // Allergies
+        if (currentUser.Allergies?.Any(a => a != Allergy.None) == true)
+        {
+            var allergyNames = currentUser.Allergies.Where(a => a != Allergy.None).Select(a => $"{a}-Free").ToList();
+            restrictions.AddRange(allergyNames);
+        }
+        
+        // Custom dietary restrictions
+        restrictions.AddRange(currentUser.DietaryRestrictions.Where(r => !string.IsNullOrEmpty(r)));
+        
+        return string.Join(", ", restrictions);
+    }
+
+    private async Task LoadRestaurantsAsync()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+            
+            // Load restaurants from database (these have IDs for favorites)
+            // The restaurants should already be imported via the background service in Program.cs
+            allRestaurants = await DbContext.Restaurants.ToListAsync();
+            
+            // If no restaurants found, show a helpful message
+            if (!allRestaurants.Any())
+            {
+                Console.WriteLine("No restaurants found in database. This might be normal on first startup.");
+                // Initialize with empty list to prevent null reference errors
+                allRestaurants = new List<Restaurant>();
+            }
+            
+            // Build available cuisines list from common cuisine types
+            availableCuisines = new List<string>
+            {
+                "Romanian", "Italian", "French", "Chinese", "Japanese", "Indian", "Thai", "Mexican",
+                "Greek", "Turkish", "Lebanese", "American", "British", "German", "Spanish",
+                "Vietnamese", "Korean", "Mediterranean", "Seafood", "Pizza", "FastFood", "Cafe"
+            };
+            
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading restaurants: {ex.Message}");
+            // Don't show alert to user, just log the error
+            allRestaurants = new List<Restaurant>(); // Ensure we have an empty list
+            
+            // Build available cuisines list even if restaurant loading failed
+            availableCuisines = new List<string>
+            {
+                "Romanian", "Italian", "French", "Chinese", "Japanese", "Indian", "Thai", "Mexican",
+                "Greek", "Turkish", "Lebanese", "American", "British", "German", "Spanish",
+                "Vietnamese", "Korean", "Mediterranean", "Seafood", "Pizza", "FastFood", "Cafe"
+            };
+            
+            ApplyFilters();
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        filteredRestaurants = allRestaurants.Where(r =>
+            // Search term filter
+            (string.IsNullOrEmpty(searchTerm) ||
+             r.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+             (r.Address?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false)) &&
+            // Cuisine filter (simplified - since Overpass doesn't have cuisine data, we'll use name-based matching)
+            (string.IsNullOrEmpty(selectedCuisine) || ContainsCuisineKeyword(r.Name, selectedCuisine)) &&
+            // Price range filter
+            (string.IsNullOrEmpty(selectedPriceRange) || MatchesPriceRange(r, selectedPriceRange)) &&
+            // Rating filter
+            (minRating == 0 || GetRandomRating(r) >= minRating) &&
+            // Dietary filters (using the correct boolean method calls)
+            (!filterVegetarian || GetRandomDietaryOption(r, "vegetarian") || GetRandomDietaryOption(r, "vegan")) &&
+            (!filterVegan || GetRandomDietaryOption(r, "vegan")) &&
+            (!filterPescatarian || GetRandomDietaryOption(r, "pescatarian")) &&
+            (!filterGlutenFree || GetRandomDietaryOption(r, "gluten-free")) &&
+            (!filterLactoseFree || GetRandomDietaryOption(r, "lactose-free")) &&
+            (!filterDiabeticFriendly || GetRandomDietaryOption(r, "diabetic-friendly")) &&
+            (!filterPureeFoods || GetRandomDietaryOption(r, "puree-foods")) &&
+            (!filterNutFree || GetRandomDietaryOption(r, "nut-free")) &&
+            (!filterEggFree || GetRandomDietaryOption(r, "egg-free")) &&
+            (!filterHoneyFree || GetRandomDietaryOption(r, "honey-free")) &&
+            (!filterShellfishFree || GetRandomDietaryOption(r, "shellfish-free"))
+        ).ToList();
+
+        // Sort by name
+        filteredRestaurants = filteredRestaurants.OrderBy(r => r.Name).ToList();
+
+        currentPage = 1;
+        StateHasChanged();
+    }
+
+    private bool MatchesPriceRange(Restaurant restaurant, string priceRange)
+    {
+        var restaurantPriceRange = GetPriceRange(restaurant);
+        return priceRange switch
+        {
+            "budget" => restaurantPriceRange == "€",
+            "moderate" => restaurantPriceRange == "€€",
+            "expensive" => restaurantPriceRange == "€€€",
+            "fine-dining" => restaurantPriceRange == "€€€€",
+            _ => true
+        };
+    }
+
+    private string GetPriceRangeDisplayName(string priceRange)
+    {
+        return priceRange switch
+        {
+            "budget" => "€ Budget",
+            "moderate" => "€€ Moderate",
+            "expensive" => "€€€ Expensive",
+            "fine-dining" => "€€€€ Fine Dining",
+            _ => priceRange
+        };
+    }
+
+    private bool ContainsCuisineKeyword(string restaurantName, string cuisine)
+    {
+        var keywords = GetCuisineKeywords(cuisine);
+        return keywords.Any(keyword => restaurantName.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private List<string> GetCuisineKeywords(string cuisine)
+    {
+        return cuisine.ToLower() switch
+        {
+            "romanian" => new List<string> { "romanian", "tradicional", "romanesc", "crama", "hanul" },
+            "italian" => new List<string> { "pizza", "pasta", "italian", "trattoria", "ristorante" },
+            "chinese" => new List<string> { "chinese", "china", "asian", "wok", "dragon" },
+            "japanese" => new List<string> { "sushi", "japanese", "japan", "ramen", "tokyo" },
+            "french" => new List<string> { "french", "bistro", "brasserie", "cafe", "patisserie" },
+            "indian" => new List<string> { "indian", "curry", "tandoor", "masala" },
+            "mexican" => new List<string> { "mexican", "taco", "burrito", "cantina" },
+            "thai" => new List<string> { "thai", "thailand", "pad", "tom" },
+            "greek" => new List<string> { "greek", "gyros", "souvlaki", "taverna" },
+            "turkish" => new List<string> { "turkish", "kebab", "doner", "ottoman" },
+            _ => new List<string> { cuisine.ToLower() }
+        };
+    }
+
+    private string GetCuisineDisplayName(string cuisine)
+    {
+        return cuisine switch
+        {
+            "Romanian" => "🇷🇴 Romanian",
+            "Italian" => "🇮🇹 Italian", 
+            "French" => "🇫🇷 French",
+            "Chinese" => "🇨🇳 Chinese",
+            "Japanese" => "🇯🇵 Japanese",
+            "Indian" => "🇮🇳 Indian",
+            "Thai" => "🇹🇭 Thai",
+            "Mexican" => "🇲🇽 Mexican",
+            "Greek" => "🇬🇷 Greek",
+            "Turkish" => "🇹🇷 Turkish",
+            "Lebanese" => "🇱🇧 Lebanese",
+            "American" => "🇺🇸 American",
+            "British" => "🇬🇧 British",
+            "German" => "🇩🇪 German",
+            "Spanish" => "🇪🇸 Spanish",
+            "Vietnamese" => "🇻🇳 Vietnamese",
+            "Korean" => "🇰🇷 Korean",
+            "Pizza" => "🍕 Pizza",
+            "Cafe" => "☕ Cafe",
+            _ => cuisine
+        };
+    }
+
+    private bool HasDietaryFilters()
+    {
+        return filterVegetarian || filterVegan || filterPescatarian || filterGlutenFree || 
+               filterLactoseFree || filterDiabeticFriendly || filterPureeFoods ||
+               filterNutFree || filterEggFree || filterHoneyFree || filterShellfishFree;
+    }
+
+    private void SetQuickFilter(string cuisine)
+    {
+        if (selectedCuisine == cuisine)
+        {
+            selectedCuisine = ""; // Toggle off if already selected
+        }
+        else
+        {
+            selectedCuisine = cuisine;
+        }
+        ApplyFilters();
+    }
+
+    private void ToggleView(bool mapView)
+    {
+        showMap = mapView;
+        StateHasChanged();
+    }
+
+    private void ClearSearch()
+    {
+        searchTerm = "";
+        ApplyFilters();
+    }
+
+    private void ClearAllFilters()
+    {
+        // Reset all filter values to their default state
+        searchTerm = "";
+        selectedCuisine = "";
+        selectedPriceRange = "";
+        minRating = 0;
+        filterVegetarian = false;
+        filterVegan = false;
+        filterPescatarian = false;
+        filterGlutenFree = false;
+        filterLactoseFree = false;
+        filterDiabeticFriendly = false;
+        filterPureeFoods = false;
+        filterNutFree = false;
+        filterEggFree = false;
+        filterHoneyFree = false;
+        filterShellfishFree = false;
+        
+        // Reset to first page
+        currentPage = 1;
+        
+        // Apply the cleared filters
+        ApplyFilters();
+        
+        // Force UI refresh to ensure all inputs show cleared values
+        StateHasChanged();
+    }
+
+    private void ChangePage(int page)
+    {
+        if (page >= 1 && page <= totalPages)
+        {
+            currentPage = page;
+            StateHasChanged();
+        }
+    }
+
+    private void OnSearchKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            ApplyFilters();
+        }
+    }
+
+    private async Task ViewOnMap(Restaurant restaurant)
+    {
+        selectedRestaurant = restaurant;
+        showMap = true;
+        StateHasChanged();
+        await Task.Delay(300); // Wait for UI to update
+        await InitializeMap();
+    }
+
+    private void SelectRestaurant(Restaurant restaurant)
+    {
+        selectedRestaurant = restaurant;
+        StateHasChanged();
+    }
+
+    private async Task InitializeMap()
+    {
+        if (!filteredRestaurants.Any()) return;
+
+        try
+        {
+            var restaurantData = filteredRestaurants
+                .Where(r => r.Latitude != 0 && r.Longitude != 0)
+                .Select(r => new
+                {
+                    name = r.Name,
+                    address = r.Address ?? "N/A",
+                    phone = r.PhoneNumber ?? "",
+                    email = r.Email ?? "",
+                    website = r.Website ?? "",
+                    latitude = r.Latitude,
+                    longitude = r.Longitude,
+                    isSelected = selectedRestaurant?.Name == r.Name
+                }).ToList();
+
+            // Retry mechanism for calling the JavaScript function
+            int maxRetries = 3;
+            for (int i = 0; i < maxRetries; i++)
+            {
+                try
+                {
+                    // Check if Leaflet is loaded and our function exists
+                    bool leafletLoaded = await JSRuntime.InvokeAsync<bool>("eval", "typeof L !== 'undefined'");
+                    bool functionExists = await JSRuntime.InvokeAsync<bool>("eval", "typeof initializeRestaurantMap === 'function'");
+                    
+                    if (leafletLoaded && functionExists)
+                    {
+                        await JSRuntime.InvokeVoidAsync("initializeRestaurantMap", restaurantData, selectedRestaurant?.Latitude ?? 44.4268, selectedRestaurant?.Longitude ?? 26.1025);
+                        return; // Success, exit
+                    }
+                    
+                    // If not ready, wait and retry
+                    await Task.Delay(1000); // Wait 1 second before retry
+                }
+                catch (Exception)
+                {
+                    if (i == maxRetries - 1) throw; // Re-throw on last attempt
+                    await Task.Delay(1000);
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // Don't throw here to prevent the whole page from breaking
+        }
+    }
+
+    // Local restaurant images array
+    private static readonly string[] LocalImages = {
+        "food1.jpg", "food2.jpg", "food3.jpg", "food4.jpg",
+        "food5.jpg", "food6.jpg", "food7.jpg", "food8.jpg",
+        "food9.jpg", "food10.jpg", "food11.jpg", "food12.jpg",
+        "food13.jpg", "food14.jpg", "food15.jpg", "food16.jpg"
+    };
+
+
+
+    private bool HasDietaryOptions(Restaurant restaurant)
+    {
+        // Generate consistent dietary options based on restaurant name
+        return GetRandomDietaryOption(restaurant, "vegetarian") || 
+               GetRandomDietaryOption(restaurant, "vegan") || 
+               GetRandomDietaryOption(restaurant, "gluten-free");
+    }
+
+    private bool GetRandomDietaryOption(Restaurant restaurant, string optionType)
+    {
+        // Generate consistent dietary options based on restaurant name hash
+        var hash = Math.Abs(restaurant.Name.GetHashCode());
+        var chance = optionType switch
+        {
+            "vegetarian" => (hash % 5) == 0, // 20% chance
+            "vegan" => (hash % 8) == 0,      // 12.5% chance
+            "pescatarian" => (hash % 7) == 0, // ~14% chance
+            "gluten-free" => (hash % 6) == 0, // ~16% chance
+            "lactose-free" => (hash % 9) == 0, // ~11% chance
+            "diabetic-friendly" => (hash % 8) == 0, // 12.5% chance
+            "puree-foods" => (hash % 10) == 0, // 10% chance
+            "nut-free" => (hash % 7) == 0, // ~14% chance
+            "egg-free" => (hash % 8) == 0, // 12.5% chance
+            "honey-free" => (hash % 9) == 0, // ~11% chance
+            "shellfish-free" => (hash % 6) == 0, // ~16% chance
+            _ => false
+        };
+        return chance;
+    }
+
+    private string GetRestaurantType(string restaurantName)
+    {
+        var name = restaurantName.ToLower();
+        
+        if (name.Contains("pizza")) return "🍕 Pizza";
+        if (name.Contains("sushi") || name.Contains("japanese")) return "🍣 Japanese";
+        if (name.Contains("chinese") || name.Contains("asian")) return "🥡 Chinese";
+        if (name.Contains("italian")) return "🇮🇹 Italian";
+        if (name.Contains("mexican")) return "🌮 Mexican";
+        if (name.Contains("indian")) return "🇮🇳 Indian";
+        if (name.Contains("thai")) return "🇹🇭 Thai";
+        if (name.Contains("french")) return "🇫🇷 French";
+        if (name.Contains("greek")) return "🇬🇷 Greek";
+        if (name.Contains("turkish") || name.Contains("kebab")) return "🇹🇷 Turkish";
+        if (name.Contains("romanian") || name.Contains("crama") || name.Contains("hanul")) return "🇷🇴 Romanian";
+        if (name.Contains("cafe") || name.Contains("coffee")) return "☕ Cafe";
+        if (name.Contains("fast") || name.Contains("burger")) return "🍔 Fast Food";
+        if (name.Contains("seafood") || name.Contains("fish")) return "🐟 Seafood";
+        
+        return "🍽️ Restaurant";
+    }
+
+    private double GetRandomRating(Restaurant restaurant)
+    {
+        // Generate consistent rating based on restaurant name hash
+        var hash = Math.Abs(restaurant.Name.GetHashCode());
+        var rating = 3.5 + (hash % 16) / 10.0; // Rating between 3.5 and 5.0
+        return Math.Round(rating, 1);
+    }
+
+    private string GetShortAddress(string address)
+    {
+        if (string.IsNullOrEmpty(address)) return "Bucharest";
+        
+        // Simplify address by taking first part before comma
+        var parts = address.Split(',');
+        return parts[0].Trim();
+    }
+
+    private string GetPriceRange(Restaurant restaurant)
+    {
+        // Generate price range based on restaurant name characteristics
+        var name = restaurant.Name.ToLower();
+        var hash = Math.Abs(restaurant.Name.GetHashCode());
+        
+        // Fine dining keywords
+        if (name.Contains("fine") || name.Contains("luxury") || name.Contains("premium") || 
+            name.Contains("gourmet") || name.Contains("exclusive") || name.Contains("palace") ||
+            name.Contains("grand") || name.Contains("royal") || name.Contains("haute"))
+            return "€€€€";
+        
+        // Expensive keywords
+        else if (name.Contains("bistro") || name.Contains("brasserie") || name.Contains("steakhouse") ||
+                 name.Contains("wine") || name.Contains("cellar") || name.Contains("terrace") ||
+                 (name.Contains("restaurant") && !name.Contains("fast")))
+            return "€€€";
+        
+        // Budget keywords
+        else if (name.Contains("fast") || name.Contains("quick") || name.Contains("street") ||
+                 name.Contains("snack") || name.Contains("kebab") || name.Contains("shawarma") ||
+                 name.Contains("pizza") && (name.Contains("express") || name.Contains("delivery")))
+            return "€";
+        
+        // Default moderate or use hash for consistent assignment
+        else
+        {
+            var priceCategory = hash % 4;
+            return priceCategory switch
+            {
+                0 => "€",      // 25% budget
+                1 => "€€",     // 25% moderate  
+                2 => "€€",     // 25% moderate (making moderate more common)
+                3 => "€€€",    // 25% expensive
+                _ => "€€"
+            };
+        }
+    }
+
+    private int GetRandomDeliveryTime()
+    {
+        // Generate consistent delivery time based on current restaurant
+        var times = new[] { 15, 20, 25, 30, 35, 40, 45 };
+        return times[DateTime.Now.Minute % times.Length];
+    }
+
+    private async Task CallRestaurant(string phoneNumber)
+    {
+        await JSRuntime.InvokeVoidAsync("window.open", $"tel:{phoneNumber}", "_self");
+    }
+
+    private void ViewRestaurantDetail(int restaurantId)
+    {
+        NavigationManager.NavigateTo($"/restaurant/{restaurantId}");
+    }
+
+    private string GetRestaurantImageUrl(Restaurant restaurant)
+    {
+        var idx = Math.Abs(restaurant.Name.GetHashCode()) % LocalImages.Length;
+        return $"images/restaurants/{LocalImages[idx]}";
+    }
+
+    private string GetAvailableHours(Restaurant restaurant)
+    {
+        // Generate consistent hours based on restaurant name hash
+        var hash = Math.Abs(restaurant.Name.GetHashCode());
+        var hourType = hash % 3;
+        
+        return hourType switch
+        {
+            0 => "Open 10:00 - 22:00", // Regular hours
+            1 => "Open 11:00 - 23:00", // Late hours
+            2 => "Open 12:00 - 21:00", // Early close
+            _ => "Open 10:00 - 22:00"
+        };
+    }
+
+    private List<string> GetDietaryHints(Restaurant restaurant)
+    {
+        var hints = new List<string>();
+        
+        if (GetRandomDietaryOption(restaurant, "vegetarian")) hints.Add("Vegetarian");
+        if (GetRandomDietaryOption(restaurant, "vegan")) hints.Add("Vegan");
+        if (GetRandomDietaryOption(restaurant, "pescatarian")) hints.Add("Pescatarian");
+        if (GetRandomDietaryOption(restaurant, "gluten-free")) hints.Add("Gluten-Free");
+        if (GetRandomDietaryOption(restaurant, "lactose-free")) hints.Add("Lactose-Free");
+        if (GetRandomDietaryOption(restaurant, "diabetic-friendly")) hints.Add("Diabetic-Friendly");
+        if (GetRandomDietaryOption(restaurant, "nut-free")) hints.Add("Nut-Free");
+        if (GetRandomDietaryOption(restaurant, "egg-free")) hints.Add("Egg-Free");
+        
+        return hints;
+    }
+
+    // Favorites functionality for all users
+    private async Task LoadFavoritesAsync()
+    {
+        try
+        {
+            if (currentUser != null)
+            {
+                // Logged-in user: load from database
+                Console.WriteLine($"Loading favorites for user: {currentUser.Email}");
+                var favoriteRestaurants = await FavoriteService.GetUserFavoritesAsync(currentUser.Id);
+                Console.WriteLine($"Found {favoriteRestaurants.Count} favorite restaurants");
+                
+                userFavorites = favoriteRestaurants.ToDictionary(r => r.Id, _ => true);
+                
+                // Debug: Print the favorite restaurant IDs
+                foreach (var fav in favoriteRestaurants)
+                {
+                    Console.WriteLine($"Favorite restaurant ID: {fav.Id}, Name: {fav.Name}");
+                }
+            }
+            else
+            {
+                // Anonymous user: load from local storage
+                Console.WriteLine("Loading favorites from local storage for anonymous user");
+                await LoadLocalFavoritesAsync();
+            }
+            
+            Console.WriteLine($"Total userFavorites dictionary entries: {userFavorites.Count}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading favorites: {ex.Message}");
+        }
+    }
+
+    private async Task LoadLocalFavoritesAsync()
+    {
+        try
+        {
+            var favoritesJson = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "restaurantFavorites");
+            if (!string.IsNullOrEmpty(favoritesJson))
+            {
+                localFavorites = System.Text.Json.JsonSerializer.Deserialize<List<int>>(favoritesJson) ?? new List<int>();
+                userFavorites = localFavorites.ToDictionary(id => id, _ => true);
+            }
+            else
+            {
+                localFavorites = new List<int>();
+                userFavorites = new Dictionary<int, bool>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading local favorites: {ex.Message}");
+            localFavorites = new List<int>();
+            userFavorites = new Dictionary<int, bool>();
+        }
+    }
+
+    private async Task SaveLocalFavoritesAsync()
+    {
+        try
+        {
+            var favoritesJson = System.Text.Json.JsonSerializer.Serialize(localFavorites);
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", "restaurantFavorites", favoritesJson);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving local favorites: {ex.Message}");
+        }
+    }
+
+    private bool IsFavorite(int restaurantId)
+    {
+        var isFav = userFavorites.ContainsKey(restaurantId) && userFavorites[restaurantId];
+        if (userFavorites.ContainsKey(restaurantId))
+        {
+            Console.WriteLine($"Restaurant {restaurantId} is in favorites dictionary with value: {userFavorites[restaurantId]}");
+        }
+        return isFav;
+    }
+
+    private async Task ToggleFavorite(int restaurantId)
+    {
+        try
+        {
+            var wasFavorite = IsFavorite(restaurantId);
+
+            if (currentUser != null)
+            {
+                // Logged-in user: save to database
+                var success = await FavoriteService.ToggleFavoriteAsync(currentUser.Id, restaurantId);
+                
+                if (success)
+                {
+                    if (wasFavorite)
+                    {
+                        userFavorites.Remove(restaurantId);
+                    }
+                    else
+                    {
+                        userFavorites[restaurantId] = true;
+                    }
+                }
+            }
+            else
+            {
+                // Anonymous user: save to local storage
+                if (wasFavorite)
+                {
+                    localFavorites.Remove(restaurantId);
+                    userFavorites.Remove(restaurantId);
+                }
+                else
+                {
+                    localFavorites.Add(restaurantId);
+                    userFavorites[restaurantId] = true;
+                }
+                await SaveLocalFavoritesAsync();
+            }
+            
+            // Refresh the favorites dropdown in the main layout
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("window.refreshFavorites");
+            }
+            catch (Exception jsEx)
+            {
+                Console.WriteLine($"Error refreshing favorites: {jsEx.Message}");
+                // Non-critical error, continue without refreshing
+            }
+            
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error toggling favorite: {ex.Message}");
+        }
+    }
+}

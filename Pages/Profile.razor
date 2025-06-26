@@ -1,0 +1,973 @@
+@page "/profile"
+@using DineSure.Models
+@using DineSure.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager NavigationManager
+@inject AuthService AuthService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime JSRuntime
+@inject ReservationService ReservationService
+
+<PageTitle>My Profile - DineSure</PageTitle>
+
+<style>
+    .restaurant-link {
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+    }
+    
+    .restaurant-link:hover {
+        color: #0056b3 !important;
+        transform: translateX(2px);
+    }
+    
+    .restaurant-link:hover .external-link-icon {
+        transform: scale(1.2);
+    }
+    
+    .external-link-icon {
+        transition: transform 0.2s ease;
+        opacity: 0.7;
+    }
+    
+    .reservation-card {
+        transition: all 0.3s ease;
+        border-radius: 10px;
+    }
+    
+    .reservation-card:hover {
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+</style>
+
+<AuthorizeView>
+    <Authorized>
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h3 class="mb-0">
+                            <i class="fas fa-user-circle me-2"></i>My Profile
+                        </h3>
+                        <div>
+                            <button class="btn btn-primary me-2" @onclick="EditProfile">
+                                <i class="fas fa-edit me-1"></i>Edit Profile
+                            </button>
+                            <button class="btn btn-outline-danger" @onclick="HandleLogout">
+                                <i class="fas fa-sign-out-alt me-1"></i>Logout
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        @if (user != null)
+                        {
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h5 class="card-title text-primary">
+                                                <i class="fas fa-id-card me-2"></i>Personal Information
+                                            </h5>
+                                            <div class="mb-3">
+                                                <label class="fw-bold text-muted">Username</label>
+                                                <p class="mb-1">@user.UserName</p>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="fw-bold text-muted">Email</label>
+                                                <p class="mb-1">@user.Email</p>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="fw-bold text-muted">Member Since</label>
+                                                <p class="mb-1">@user.CreatedAt.ToString("MMMM dd, yyyy")</p>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="fw-bold text-muted">Profile Completeness</label>
+                                                <div class="progress" style="height: 8px;">
+                                                    <div class="progress-bar bg-success" role="progressbar" 
+                                                         style="width: @(GetProfileCompleteness())%" 
+                                                         aria-valuenow="@GetProfileCompleteness()" aria-valuemin="0" aria-valuemax="100">
+                                                    </div>
+                                                </div>
+                                                <small class="text-muted">@GetProfileCompleteness()% complete</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h5 class="card-title text-success">
+                                                <i class="fas fa-leaf me-2"></i>Dietary Information
+                                            </h5>
+                                            <div class="mb-3">
+                                                <label class="fw-bold text-muted">Diet Type</label>
+                                                <p><span class="badge bg-primary fs-6">@GetDietaryTypeDisplayName(user.DietaryType)</span></p>
+                                            </div>
+
+                                            @if (user.HasDiabetes || user.IsLactoseIntolerant || user.IsGlutenFree)
+                                            {
+                                                <div class="mb-3">
+                                                    <label class="fw-bold text-muted">Health Conditions</label>
+                                                    <div class="d-flex flex-wrap gap-1">
+                                                        @if (user.HasDiabetes)
+                                                        {
+                                                            <span class="badge bg-info">
+                                                                <i class="fas fa-heartbeat me-1"></i>Diabetes
+                                                            </span>
+                                                        }
+                                                        @if (user.IsLactoseIntolerant)
+                                                        {
+                                                            <span class="badge bg-info">
+                                                                <i class="fas fa-glass-whiskey me-1"></i>Lactose Intolerant
+                                                            </span>
+                                                        }
+                                                        @if (user.IsGlutenFree)
+                                                        {
+                                                            <span class="badge bg-info">
+                                                                <i class="fas fa-wheat me-1"></i>Gluten Free
+                                                            </span>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            }
+
+                                            @if (user.FoodPreferences.Any(p => !p.StartsWith("Other Allergy:")))
+                                            {
+                                                <div class="mb-3">
+                                                    <label class="fw-bold text-muted">Food Preferences</label>
+                                                    <div class="d-flex flex-wrap gap-1">
+                                                        @foreach (var preference in user.FoodPreferences.Where(p => !p.StartsWith("Other Allergy:")))
+                                                        {
+                                                            <span class="badge bg-success">
+                                                                <i class="fas fa-thumbs-up me-1"></i>@preference
+                                                            </span>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            }
+
+                                            @if (user.DietaryRestrictions.Any())
+                                            {
+                                                <div class="mb-3">
+                                                    <label class="fw-bold text-muted">Dietary Restrictions</label>
+                                                    <div class="d-flex flex-wrap gap-1">
+                                                        @foreach (var restriction in user.DietaryRestrictions)
+                                                        {
+                                                            <span class="badge bg-warning text-dark">
+                                                                <i class="fas fa-exclamation-triangle me-1"></i>@restriction
+                                                            </span>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h5 class="card-title text-danger">
+                                                <i class="fas fa-exclamation-triangle me-2"></i>Allergies
+                                            </h5>
+                                            @if (user.Allergies.Any(a => a != Allergy.None))
+                                            {
+                                                <div class="mb-3">
+                                                    <label class="fw-bold text-muted">Known Allergies</label>
+                                                    <div class="d-flex flex-wrap gap-1">
+                                                        @foreach (var allergy in user.Allergies.Where(a => a != Allergy.None))
+                                                        {
+                                                            <span class="badge bg-danger">
+                                                                <i class="fas fa-ban me-1"></i>@GetAllergyDisplayName(allergy)
+                                                            </span>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            }
+
+                                            @if (user.FoodPreferences.Any(p => p.StartsWith("Other Allergy:")))
+                                            {
+                                                <div class="mb-3">
+                                                    <label class="fw-bold text-muted">Other Allergies</label>
+                                                    <div class="d-flex flex-wrap gap-1">
+                                                        @foreach (var preference in user.FoodPreferences.Where(p => p.StartsWith("Other Allergy:")))
+                                                        {
+                                                            <span class="badge bg-danger">
+                                                                <i class="fas fa-ban me-1"></i>@preference.Replace("Other Allergy: ", "")
+                                                            </span>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            }
+
+                                            @if (!user.Allergies.Any(a => a != Allergy.None) && !user.FoodPreferences.Any(p => p.StartsWith("Other Allergy:")))
+                                            {
+                                                <div class="text-center text-muted">
+                                                    <i class="fas fa-check-circle fs-1 mb-2"></i>
+                                                    <p>No known allergies</p>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Quick Stats Section -->
+                            <div class="row mt-4">
+                                <div class="col-12">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h5 class="card-title">
+                                                <i class="fas fa-chart-bar me-2"></i>Profile Summary
+                                            </h5>
+                                            <div class="row text-center">
+                                                <div class="col-md-3">
+                                                    <div class="d-flex flex-column">
+                                                        <span class="fs-4 text-primary">@user.Allergies.Count(a => a != Allergy.None)</span>
+                                                        <small class="text-muted">Allergies Tracked</small>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="d-flex flex-column">
+                                                        <span class="fs-4 text-success">@user.FoodPreferences.Count(p => !p.StartsWith("Other Allergy:"))</span>
+                                                        <small class="text-muted">Food Preferences</small>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="d-flex flex-column">
+                                                        <span class="fs-4 text-warning">@user.DietaryRestrictions.Count</span>
+                                                        <small class="text-muted">Dietary Restrictions</small>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="d-flex flex-column">
+                                                        <span class="fs-4 text-info">@(userReservations?.Count ?? 0)</span>
+                                                        <small class="text-muted">Total Reservations</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- New Dashboard Features -->
+                            <div class="row mt-4">
+                                <!-- Activity Dashboard -->
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h5 class="card-title text-success">
+                                                <i class="fas fa-activity me-2"></i>Activity Dashboard
+                                            </h5>
+                                            <div class="mb-3">
+                                                <div class="d-flex justify-content-between">
+                                                    <span>Profile Completeness</span>
+                                                    <span class="fw-bold">@GetProfileCompleteness()%</span>
+                                                </div>
+                                                <div class="progress mt-1">
+                                                    <div class="progress-bar bg-success" style="width: @GetProfileCompleteness()%"></div>
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <div class="d-flex justify-content-between">
+                                                    <span>Days Since Registration</span>
+                                                    <span class="fw-bold">@GetDaysSinceRegistration()</span>
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <div class="d-flex justify-content-between">
+                                                    <span>Profile Safety Score</span>
+                                                    <span class="fw-bold text-@GetSafetyScoreColor()">@GetSafetyScore()%</span>
+                                                </div>
+                                                <div class="progress mt-1">
+                                                    <div class="progress-bar bg-@GetSafetyScoreColor()" style="width: @GetSafetyScore()%"></div>
+                                                </div>
+                                                <small class="text-muted">Based on allergy and health condition tracking</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Dietary Goals -->
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h5 class="card-title text-primary">
+                                                <i class="fas fa-target me-2"></i>Dietary Goals & Tips
+                                            </h5>
+                                            @foreach (var tip in GetPersonalizedTips())
+                                            {
+                                                <div class="alert alert-@tip.Type alert-sm mb-2" role="alert">
+                                                    <i class="fas fa-@tip.Icon me-2"></i>
+                                                    <strong>@tip.Title:</strong> @tip.Message
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Restaurant Recommendations -->
+                            <div class="row mt-4">
+                                <div class="col-12">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h5 class="card-title text-warning">
+                                                <i class="fas fa-utensils me-2"></i>Personalized Restaurant Recommendations
+                                            </h5>
+                                            <p class="text-muted">Based on your dietary preferences and restrictions:</p>
+                                            <div class="row">
+                                                @foreach (var recommendation in GetRestaurantRecommendations())
+                                                {
+                                                    <div class="col-md-4 mb-3">
+                                                        <div class="card border-@recommendation.Priority">
+                                                            <div class="card-body">
+                                                                <h6 class="card-title">@recommendation.Type</h6>
+                                                                <p class="card-text">@recommendation.Description</p>
+                                                                <div class="d-flex flex-wrap gap-1">
+                                                                    @foreach (var tag in recommendation.Tags)
+                                                                    {
+                                                                        <span class="badge bg-@recommendation.Priority">@tag</span>
+                                                                    }
+                                                                </div>
+                                                                <div class="mt-2">
+                                                                    <small class="text-@recommendation.Priority">
+                                                                        <i class="fas fa-star me-1"></i>@recommendation.MatchScore% Match
+                                                                    </small>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- My Reservations -->
+                            <div class="row mt-4">
+                                <div class="col-12">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h5 class="card-title text-primary">
+                                                <i class="fas fa-calendar-check me-2"></i>My Reservations
+                                            </h5>
+                                            @if (userReservations == null)
+                                            {
+                                                <div class="text-center">
+                                                    <div class="spinner-border text-primary" role="status">
+                                                        <span class="visually-hidden">Loading reservations...</span>
+                                                    </div>
+                                                </div>
+                                            }
+                                            else if (!userReservations.Any())
+                                            {
+                                                <div class="text-center text-muted py-4">
+                                                    <i class="fas fa-calendar-plus fs-1 mb-3"></i>
+                                                    <h6>No reservations yet</h6>
+                                                    <p>Start exploring restaurants and make your first reservation!</p>
+                                                    <button class="btn btn-primary" @onclick="() => NavigateToRestaurants()">
+                                                        <i class="fas fa-search me-2"></i>Find Restaurants
+                                                    </button>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div class="row">
+                                                    @foreach (var reservation in userReservations.Take(3))
+                                                    {
+                                                        <div class="col-md-4 mb-3">
+                                                            <div class="card border-start border-@GetReservationStatusColor(reservation.Status) border-3 reservation-card" 
+                                                                 style="cursor: pointer;" 
+                                                                 @onclick="() => NavigateToRestaurant(reservation.Restaurant.Id)"
+                                                                 title="Click to view @reservation.Restaurant.Name">
+                                                                <div class="card-body">
+                                                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                                                        <h6 class="card-title mb-0">
+                                                                            <a href="/restaurant/@reservation.Restaurant.Id" 
+                                                                               class="text-decoration-none text-primary restaurant-link" 
+                                                                               title="Click to view restaurant details">
+                                                                                @reservation.Restaurant.Name
+                                                                                <i class="fas fa-external-link-alt ms-1 external-link-icon" style="font-size: 0.8rem;"></i>
+                                                                            </a>
+                                                                        </h6>
+                                                                        <span class="badge bg-@GetReservationStatusColor(reservation.Status)">
+                                                                            @reservation.Status
+                                                                        </span>
+                                                                    </div>
+                                                                    <div class="text-muted mb-2">
+                                                                        <i class="fas fa-calendar me-1"></i>
+                                                                        @reservation.ReservationDateTime.ToString("MMM dd, yyyy")
+                                                                    </div>
+                                                                    <div class="text-muted mb-2">
+                                                                        <i class="fas fa-clock me-1"></i>
+                                                                        @reservation.ReservationDateTime.ToString("h:mm tt")
+                                                                    </div>
+                                                                    <div class="text-muted mb-2">
+                                                                        <i class="fas fa-users me-1"></i>
+                                                                        @reservation.NumberOfGuests @(reservation.NumberOfGuests == 1 ? "guest" : "guests")
+                                                                    </div>
+                                                                    @if (!string.IsNullOrEmpty(reservation.SpecialRequests))
+                                                                    {
+                                                                        <div class="text-muted small">
+                                                                            <i class="fas fa-sticky-note me-1"></i>
+                                                                            @reservation.SpecialRequests
+                                                                        </div>
+                                                                    }
+                                                                    @if (reservation.Status == ReservationStatus.Confirmed && reservation.ReservationDateTime > DateTime.Now)
+                                                                    {
+                                                                        <div class="mt-2">
+                                                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => CancelReservation(reservation.Id)">
+                                                                                <i class="fas fa-times me-1"></i>Cancel
+                                                                            </button>
+                                                                        </div>
+                                                                    }
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                </div>
+                                                @if (userReservations.Count > 3)
+                                                {
+                                                    <div class="text-center mt-3">
+                                                        <button class="btn btn-outline-primary" @onclick="() => ShowAllReservations()">
+                                                            <i class="fas fa-list me-2"></i>View All @userReservations.Count Reservations
+                                                        </button>
+                                                    </div>
+                                                }
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Quick Actions -->
+                            <div class="row mt-4">
+                                <div class="col-12">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h5 class="card-title text-info">
+                                                <i class="fas fa-bolt me-2"></i>Quick Actions
+                                            </h5>
+                                            <div class="row">
+                                                <div class="col-md-3">
+                                                    <button class="btn btn-outline-primary w-100 mb-2" @onclick="() => NavigateToRestaurants()">
+                                                        <i class="fas fa-search me-2"></i>Find Restaurants
+                                                    </button>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <button class="btn btn-outline-success w-100 mb-2" @onclick="() => ShareProfile()">
+                                                        <i class="fas fa-share-alt me-2"></i>Share Profile
+                                                    </button>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <button class="btn btn-outline-warning w-100 mb-2" @onclick="() => ExportData()">
+                                                        <i class="fas fa-download me-2"></i>Export Data
+                                                    </button>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <button class="btn btn-outline-info w-100 mb-2" @onclick="() => ShowInsights()">
+                                                        <i class="fas fa-chart-line me-2"></i>View Insights
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2">Loading profile...</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <div class="text-center">
+            <div class="card">
+                <div class="card-body">
+                    <i class="fas fa-lock fs-1 text-muted mb-3"></i>
+                    <h3>Please log in to view your profile</h3>
+                    <p class="text-muted">You need to be logged in to access your profile information.</p>
+                    <a href="login" class="btn btn-primary">
+                        <i class="fas fa-sign-in-alt me-1"></i>Login
+                    </a>
+                </div>
+            </div>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private User? user;
+    private List<Reservation>? userReservations;
+
+    // New classes for dashboard features
+    public class PersonalizedTip
+    {
+        public string Title { get; set; } = "";
+        public string Message { get; set; } = "";
+        public string Type { get; set; } = "info"; // Bootstrap alert types
+        public string Icon { get; set; } = "info-circle";
+    }
+
+    public class RestaurantRecommendation
+    {
+        public string Type { get; set; } = "";
+        public string Description { get; set; } = "";
+        public List<string> Tags { get; set; } = new();
+        public string Priority { get; set; } = "primary";
+        public int MatchScore { get; set; }
+    }
+
+    private string GetDietaryTypeDisplayName(DietaryType type) => type switch
+    {
+        DietaryType.None => "No Specific Diet",
+        DietaryType.Vegetarian => "Vegetarian (No Meat)",
+        DietaryType.Vegan => "Vegan (No Animal Products)",
+        DietaryType.Pescatarian => "Pescatarian (Vegetarian + Fish)",
+        DietaryType.FlexitarianMostlyPlantBased => "Flexitarian (Mostly Plant-Based)",
+        DietaryType.Paleo => "Paleo Diet",
+        DietaryType.Keto => "Ketogenic Diet",
+        DietaryType.Mediterranean => "Mediterranean Diet",
+        DietaryType.DairyFree => "Dairy-Free",
+        DietaryType.LowCarb => "Low-Carb",
+        DietaryType.Halal => "Halal",
+        DietaryType.Kosher => "Kosher",
+        _ => type.ToString()
+    };
+
+    private string GetAllergyDisplayName(Allergy allergy) => allergy.ToString();
+
+    private int GetProfileCompleteness()
+    {
+        if (user == null) return 0;
+
+        int totalFields = 7; // Total number of profile fields we're checking
+        int completedFields = 0;
+
+        // Basic info (always present if user exists)
+        completedFields += 2; // Username and Email
+
+        // Dietary type (if not None)
+        if (user.DietaryType != DietaryType.None) completedFields++;
+
+        // Food preferences
+        if (user.FoodPreferences.Any(p => !p.StartsWith("Other Allergy:"))) completedFields++;
+
+        // Allergies
+        if (user.Allergies.Any(a => a != Allergy.None) || user.FoodPreferences.Any(p => p.StartsWith("Other Allergy:"))) completedFields++;
+
+        // Health conditions
+        if (user.HasDiabetes || user.IsLactoseIntolerant || user.IsGlutenFree) completedFields++;
+
+        // Dietary restrictions
+        if (user.DietaryRestrictions.Any()) completedFields++;
+
+        return (int)Math.Round((double)completedFields / totalFields * 100);
+    }
+
+    private int GetHealthConditionsCount()
+    {
+        if (user == null) return 0;
+        
+        int count = 0;
+        if (user.HasDiabetes) count++;
+        if (user.IsLactoseIntolerant) count++;
+        if (user.IsGlutenFree) count++;
+        return count;
+    }
+
+    private int GetDaysSinceRegistration()
+    {
+        if (user == null) return 0;
+        return (int)(DateTime.Now - user.CreatedAt).TotalDays;
+    }
+
+    private int GetSafetyScore()
+    {
+        if (user == null) return 0;
+        
+        int score = 50; // Base score
+        
+        // Add points for tracking allergies
+        if (user.Allergies.Any(a => a != Allergy.None)) score += 20;
+        
+        // Add points for health conditions tracking
+        if (user.HasDiabetes || user.IsLactoseIntolerant || user.IsGlutenFree) score += 15;
+        
+        // Add points for dietary restrictions
+        if (user.DietaryRestrictions.Any()) score += 10;
+        
+        // Add points for food preferences
+        if (user.FoodPreferences.Any()) score += 5;
+        
+        return Math.Min(score, 100);
+    }
+
+    private string GetSafetyScoreColor()
+    {
+        var score = GetSafetyScore();
+        return score switch
+        {
+            >= 80 => "success",
+            >= 60 => "warning",
+            _ => "danger"
+        };
+    }
+
+    private List<PersonalizedTip> GetPersonalizedTips()
+    {
+        if (user == null) return new List<PersonalizedTip>();
+        
+        var tips = new List<PersonalizedTip>();
+
+        // Profile completeness tips
+        if (GetProfileCompleteness() < 80)
+        {
+            tips.Add(new PersonalizedTip 
+            { 
+                Title = "Complete Your Profile", 
+                Message = "Add more details to get better restaurant recommendations!",
+                Type = "warning",
+                Icon = "exclamation-triangle"
+            });
+        }
+
+        // Diet-specific tips
+        if (user.DietaryType == DietaryType.Vegan)
+        {
+            tips.Add(new PersonalizedTip 
+            { 
+                Title = "Vegan Dining", 
+                Message = "Look for restaurants with dedicated vegan menus for the best experience.",
+                Type = "success",
+                Icon = "leaf"
+            });
+        }
+
+        if (user.DietaryType == DietaryType.Keto)
+        {
+            tips.Add(new PersonalizedTip 
+            { 
+                Title = "Keto Friendly", 
+                Message = "Focus on restaurants that offer grilled meats and fresh salads.",
+                Type = "primary",
+                Icon = "fire"
+            });
+        }
+
+        // Health condition tips
+        if (user.HasDiabetes)
+        {
+            tips.Add(new PersonalizedTip 
+            { 
+                Title = "Diabetes Care", 
+                Message = "Always check nutritional information and ask about sugar content.",
+                Type = "info",
+                Icon = "heartbeat"
+            });
+        }
+
+        if (user.Allergies.Any(a => a != Allergy.None))
+        {
+            tips.Add(new PersonalizedTip 
+            { 
+                Title = "Allergy Safety", 
+                Message = "Always inform restaurant staff about your allergies when ordering.",
+                Type = "danger",
+                Icon = "shield-alt"
+            });
+        }
+
+        // Default tip if no specific conditions
+        if (!tips.Any())
+        {
+            tips.Add(new PersonalizedTip 
+            { 
+                Title = "Explore More", 
+                Message = "Try new cuisines that match your preferences!",
+                Type = "success",
+                Icon = "compass"
+            });
+        }
+
+        return tips;
+    }
+
+    private List<RestaurantRecommendation> GetRestaurantRecommendations()
+    {
+        if (user == null) return new List<RestaurantRecommendation>();
+        
+        var recommendations = new List<RestaurantRecommendation>();
+
+        // Generate recommendations based on dietary type
+        switch (user.DietaryType)
+        {
+            case DietaryType.Vegan:
+                recommendations.Add(new RestaurantRecommendation
+                {
+                    Type = "Plant-Based Restaurants",
+                    Description = "Restaurants specializing in creative vegan cuisine",
+                    Tags = new List<string> { "Vegan", "Organic", "Fresh" },
+                    Priority = "success",
+                    MatchScore = 95
+                });
+                break;
+                
+            case DietaryType.Keto:
+                recommendations.Add(new RestaurantRecommendation
+                {
+                    Type = "Low-Carb Steakhouses",
+                    Description = "Grilled meats and fresh salads perfect for keto",
+                    Tags = new List<string> { "Keto", "Low-Carb", "Protein" },
+                    Priority = "primary",
+                    MatchScore = 90
+                });
+                break;
+                
+            case DietaryType.Mediterranean:
+                recommendations.Add(new RestaurantRecommendation
+                {
+                    Type = "Mediterranean Cuisine",
+                    Description = "Fresh seafood, olive oil, and healthy grains",
+                    Tags = new List<string> { "Healthy", "Seafood", "Fresh" },
+                    Priority = "info",
+                    MatchScore = 88
+                });
+                break;
+        }
+
+        // Add safe options for users with allergies
+        if (user.Allergies.Any(a => a != Allergy.None))
+        {
+            recommendations.Add(new RestaurantRecommendation
+            {
+                Type = "Allergy-Friendly Restaurants",
+                Description = "Restaurants with detailed allergen information and safe preparation",
+                Tags = new List<string> { "Safe", "Allergen-Free", "Certified" },
+                Priority = "warning",
+                MatchScore = 85
+            });
+        }
+
+        // Health-conscious options for users with conditions
+        if (user.HasDiabetes || user.IsLactoseIntolerant || user.IsGlutenFree)
+        {
+            recommendations.Add(new RestaurantRecommendation
+            {
+                Type = "Health-Conscious Dining",
+                Description = "Restaurants with nutritional information and healthy options",
+                Tags = new List<string> { "Healthy", "Nutritional Info", "Special Diets" },
+                Priority = "success",
+                MatchScore = 80
+            });
+        }
+
+        // Default recommendation
+        if (!recommendations.Any())
+        {
+            recommendations.Add(new RestaurantRecommendation
+            {
+                Type = "Popular Local Restaurants",
+                Description = "Top-rated restaurants in your area",
+                Tags = new List<string> { "Popular", "Local", "Highly Rated" },
+                Priority = "primary",
+                MatchScore = 75
+            });
+        }
+
+        return recommendations;
+    }
+
+    // Quick action methods
+    private void NavigateToRestaurants()
+    {
+        NavigationManager.NavigateTo("/restaurants");
+    }
+
+    private async Task ShareProfile()
+    {
+        await JSRuntime.InvokeVoidAsync("navigator.share", new 
+        { 
+                            title = "My DineSure Profile",
+                text = $"Check out my dietary profile on DineSure! I'm {GetDietaryTypeDisplayName(user?.DietaryType ?? DietaryType.None)}.",
+            url = NavigationManager.Uri
+        });
+    }
+
+    private async Task ExportData()
+    {
+        if (user == null) return;
+        
+        var exportData = new
+        {
+            UserName = user.UserName,
+            Email = user.Email,
+            DietaryType = GetDietaryTypeDisplayName(user.DietaryType),
+            Allergies = user.Allergies.Where(a => a != Allergy.None).Select(a => GetAllergyDisplayName(a)),
+            FoodPreferences = user.FoodPreferences,
+            DietaryRestrictions = user.DietaryRestrictions,
+            HealthConditions = new
+            {
+                HasDiabetes = user.HasDiabetes,
+                IsLactoseIntolerant = user.IsLactoseIntolerant,
+                IsGlutenFree = user.IsGlutenFree
+            },
+            ProfileCompleteness = GetProfileCompleteness(),
+            SafetyScore = GetSafetyScore(),
+            ExportDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+        };
+
+        var json = System.Text.Json.JsonSerializer.Serialize(exportData, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                    var fileName = $"DineSure_Profile_{user.UserName}_{DateTime.Now:yyyyMMdd}.json";
+        
+        await JSRuntime.InvokeVoidAsync("downloadFile", fileName, "data:application/json;charset=utf-8," + Uri.EscapeDataString(json));
+    }
+
+    private void ShowInsights()
+    {
+        // For now, just show an alert. In a full implementation, this could open a modal or navigate to an insights page
+        JSRuntime.InvokeVoidAsync("alert", "Insights feature coming soon! This will show detailed analytics about your dining preferences and restaurant visit patterns.");
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUserProfile();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // This ensures the page refreshes when navigated to (e.g., after creating a reservation)
+        await LoadUserProfile();
+    }
+
+    private async Task LoadUserProfile()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            // Try to get email from claims first, then fall back to name
+            var userEmail = authState.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value 
+                         ?? authState.User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
+                         ?? authState.User.Identity.Name;
+            
+            if (!string.IsNullOrEmpty(userEmail))
+            {
+                try
+                {
+                    user = await AuthService.GetCurrentUserAsync(userEmail);
+                    
+                    // If we didn't find user by email, try by username
+                    if (user == null && !userEmail.Contains("@"))
+                    {
+                        // This might be a username, let's try to find by username instead
+                        user = await AuthService.GetUserByUsernameAsync(userEmail);
+                    }
+
+                    // Load user reservations after loading user profile
+                    if (user != null)
+                    {
+                        await LoadUserReservations();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Log error but don't crash the page
+                    Console.WriteLine($"Error loading user profile: {ex.Message}");
+                }
+            }
+        }
+    }
+
+    private void EditProfile()
+    {
+        NavigationManager.NavigateTo("/profile/edit");
+    }
+
+    private async Task HandleLogout()
+    {
+        var success = await JSRuntime.InvokeAsync<bool>("submitLogoutForm");
+        if (success)
+        {
+            NavigationManager.NavigateTo("/", true);
+        }
+    }
+
+    // Reservation management methods
+    private async Task LoadUserReservations()
+    {
+        if (user != null)
+        {
+            try
+            {
+                userReservations = await ReservationService.GetUserReservationsAsync(user.Id);
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading reservations: {ex.Message}");
+                userReservations = new List<Reservation>();
+            }
+        }
+    }
+
+    private string GetReservationStatusColor(ReservationStatus status) => status switch
+    {
+        ReservationStatus.Pending => "warning",
+        ReservationStatus.Confirmed => "success",
+        ReservationStatus.Cancelled => "danger",
+        ReservationStatus.Completed => "info",
+        ReservationStatus.NoShow => "secondary",
+        _ => "primary"
+    };
+
+    private async Task CancelReservation(int reservationId)
+    {
+        if (user == null) return;
+
+        try
+        {
+            var success = await ReservationService.CancelReservationAsync(reservationId, user.Id);
+            if (success)
+            {
+                await LoadUserReservations(); // Reload reservations
+                await JSRuntime.InvokeVoidAsync("alert", "Reservation cancelled successfully!");
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Failed to cancel reservation. Please try again.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cancelling reservation: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", "An error occurred while cancelling the reservation.");
+        }
+    }
+
+    private void ShowAllReservations()
+    {
+        // For now, just show an alert. In a full implementation, this could navigate to a dedicated reservations page
+        JSRuntime.InvokeVoidAsync("alert", "Full reservations page coming soon! This will show all your reservation history and details.");
+    }
+
+    private void NavigateToRestaurant(int restaurantId)
+    {
+        NavigationManager.NavigateTo($"/restaurant/{restaurantId}");
+    }
+} 

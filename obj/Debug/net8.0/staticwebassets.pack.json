@@ -1,0 +1,153 @@
+{
+  "Files": [
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\obj\\Debug\\net8.0\\scopedcss\\projectbundle\\DineSure.bundle.scp.css",
+      "PackagePath": "staticwebassets\\DineSure.otalyuuzhh.bundle.scp.css"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\css\\bootstrap\\bootstrap.min.css",
+      "PackagePath": "staticwebassets\\css\\bootstrap\\bootstrap.min.css"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\css\\bootstrap\\bootstrap.min.css.map",
+      "PackagePath": "staticwebassets\\css\\bootstrap\\bootstrap.min.css.map"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\css\\open-iconic\\FONT-LICENSE",
+      "PackagePath": "staticwebassets\\css\\open-iconic"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\css\\open-iconic\\ICON-LICENSE",
+      "PackagePath": "staticwebassets\\css\\open-iconic"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\css\\open-iconic\\README.md",
+      "PackagePath": "staticwebassets\\css\\open-iconic\\README.md"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\css\\open-iconic\\font\\css\\open-iconic-bootstrap.min.css",
+      "PackagePath": "staticwebassets\\css\\open-iconic\\font\\css\\open-iconic-bootstrap.min.css"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\css\\open-iconic\\font\\fonts\\open-iconic.eot",
+      "PackagePath": "staticwebassets\\css\\open-iconic\\font\\fonts\\open-iconic.eot"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\css\\open-iconic\\font\\fonts\\open-iconic.otf",
+      "PackagePath": "staticwebassets\\css\\open-iconic\\font\\fonts\\open-iconic.otf"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\css\\open-iconic\\font\\fonts\\open-iconic.svg",
+      "PackagePath": "staticwebassets\\css\\open-iconic\\font\\fonts\\open-iconic.svg"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\css\\open-iconic\\font\\fonts\\open-iconic.ttf",
+      "PackagePath": "staticwebassets\\css\\open-iconic\\font\\fonts\\open-iconic.ttf"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\css\\open-iconic\\font\\fonts\\open-iconic.woff",
+      "PackagePath": "staticwebassets\\css\\open-iconic\\font\\fonts\\open-iconic.woff"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\css\\site.css",
+      "PackagePath": "staticwebassets\\css\\site.css"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\favicon.png",
+      "PackagePath": "staticwebassets\\favicon.png"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\images\\restaurant-background.jpg",
+      "PackagePath": "staticwebassets\\images\\restaurant-background.jpg"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\images\\restaurants\\food1.jpg",
+      "PackagePath": "staticwebassets\\images\\restaurants\\food1.jpg"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\images\\restaurants\\food10.jpg",
+      "PackagePath": "staticwebassets\\images\\restaurants\\food10.jpg"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\images\\restaurants\\food11.jpg",
+      "PackagePath": "staticwebassets\\images\\restaurants\\food11.jpg"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\images\\restaurants\\food12.jpg",
+      "PackagePath": "staticwebassets\\images\\restaurants\\food12.jpg"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\images\\restaurants\\food13.jpg",
+      "PackagePath": "staticwebassets\\images\\restaurants\\food13.jpg"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\images\\restaurants\\food14.jpg",
+      "PackagePath": "staticwebassets\\images\\restaurants\\food14.jpg"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\images\\restaurants\\food15.jpg",
+      "PackagePath": "staticwebassets\\images\\restaurants\\food15.jpg"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\images\\restaurants\\food16.jpg",
+      "PackagePath": "staticwebassets\\images\\restaurants\\food16.jpg"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\images\\restaurants\\food2.jpg",
+      "PackagePath": "staticwebassets\\images\\restaurants\\food2.jpg"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\images\\restaurants\\food3.jpg",
+      "PackagePath": "staticwebassets\\images\\restaurants\\food3.jpg"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\images\\restaurants\\food4.jpg",
+      "PackagePath": "staticwebassets\\images\\restaurants\\food4.jpg"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\images\\restaurants\\food5.jpg",
+      "PackagePath": "staticwebassets\\images\\restaurants\\food5.jpg"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\images\\restaurants\\food6.jpg",
+      "PackagePath": "staticwebassets\\images\\restaurants\\food6.jpg"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\images\\restaurants\\food7.jpg",
+      "PackagePath": "staticwebassets\\images\\restaurants\\food7.jpg"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\images\\restaurants\\food8.jpg",
+      "PackagePath": "staticwebassets\\images\\restaurants\\food8.jpg"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\images\\restaurants\\food9.jpg",
+      "PackagePath": "staticwebassets\\images\\restaurants\\food9.jpg"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\js\\map.js",
+      "PackagePath": "staticwebassets\\js\\map.js"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.DineSure.Microsoft.AspNetCore.StaticWebAssetEndpoints.props",
+      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssetEndpoints.props"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.DineSure.Microsoft.AspNetCore.StaticWebAssets.props",
+      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssets.props"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.build.DineSure.props",
+      "PackagePath": "build\\DineSure.props"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.buildMultiTargeting.DineSure.props",
+      "PackagePath": "buildMultiTargeting\\DineSure.props"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.buildTransitive.DineSure.props",
+      "PackagePath": "buildTransitive\\DineSure.props"
+    }
+  ],
+  "ElementsToRemove": []
+}

@@ -1,0 +1,520 @@
+@page "/reports"
+@layout MainLayout
+@using DineSure.Models
+@using DineSure.Data
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Reports & Analytics - DineSure</PageTitle>
+
+<style>
+    .reports-page {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        border: 1px solid #e9ecef;
+        transition: transform 0.3s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #007bff;
+    }
+    
+    .stat-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .chart-card {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        border: 1px solid #e9ecef;
+    }
+    
+    .top-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .top-item:last-child {
+        border-bottom: none;
+    }
+    
+    .badge-lg {
+        font-size: 1rem;
+        padding: 0.5rem 1rem;
+    }
+</style>
+
+<div class="reports-page">
+    <div class="container">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h1 class="display-4 mb-2">📊 Reports & Analytics</h1>
+                <p class="lead text-muted">Comprehensive insights into your DineSure application</p>
+            </div>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                    <span class="visually-hidden">Loading reports...</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            <!-- Key Statistics -->
+            <div class="row mb-5">
+                <div class="col-md-3">
+                    <div class="stat-card text-center">
+                        <div class="stat-number">@totalUsers</div>
+                        <div class="stat-label">Total Users</div>
+                        <div class="mt-2">
+                            <small class="text-success">
+                                <i class="fas fa-arrow-up"></i> @newUsersThisMonth this month
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card text-center">
+                        <div class="stat-number">@totalRestaurants</div>
+                        <div class="stat-label">Restaurants</div>
+                        <div class="mt-2">
+                            <small class="text-info">
+                                <i class="fas fa-map-marker-alt"></i> Active locations
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card text-center">
+                        <div class="stat-number">@totalReservations</div>
+                        <div class="stat-label">Total Reservations</div>
+                        <div class="mt-2">
+                            <small class="text-warning">
+                                <i class="fas fa-calendar"></i> @reservationsThisMonth this month
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card text-center">
+                        <div class="stat-number">@totalReviews</div>
+                        <div class="stat-label">Customer Reviews</div>
+                        <div class="mt-2">
+                            <small class="text-success">
+                                <i class="fas fa-star"></i> @averageReviewRating.ToString("F1") avg rating
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Restaurants -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="chart-card">
+                        <h4 class="mb-4">
+                            <i class="fas fa-trophy me-2 text-warning"></i>
+                            Top Restaurants by Reservations
+                        </h4>
+                        @if (topRestaurantsByReservations?.Any() == true)
+                        {
+                            @foreach (var item in topRestaurantsByReservations.Take(5))
+                            {
+                                <div class="top-item">
+                                    <div>
+                                        <strong>@item.RestaurantName</strong>
+                                        <br>
+                                        <small class="text-muted">@item.CuisineTypes</small>
+                                    </div>
+                                    <span class="badge bg-primary badge-lg">@item.ReservationCount</span>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center py-3">No reservations data available</p>
+                        }
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="chart-card">
+                        <h4 class="mb-4">
+                            <i class="fas fa-star me-2 text-warning"></i>
+                            Top Rated Restaurants
+                        </h4>
+                        @if (topRestaurantsByRating?.Any() == true)
+                        {
+                            @foreach (var item in topRestaurantsByRating.Take(5))
+                            {
+                                <div class="top-item">
+                                    <div>
+                                        <strong>@item.RestaurantName</strong>
+                                        <br>
+                                        <small class="text-muted">@item.ReviewCount review(s)</small>
+                                    </div>
+                                    <span class="badge bg-warning badge-lg">
+                                        ⭐ @item.AverageRating.ToString("F1")
+                                    </span>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center py-3">No reviews data available</p>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Demographics -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="chart-card">
+                        <h4 class="mb-4">
+                            <i class="fas fa-users me-2 text-info"></i>
+                            User Age Demographics
+                        </h4>
+                        @if (ageDemographics?.Any() == true)
+                        {
+                            @foreach (var demo in ageDemographics)
+                            {
+                                <div class="top-item">
+                                    <div>
+                                        <strong>@demo.AgeRange</strong>
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <div class="progress me-3" style="width: 100px; height: 20px;">
+                                            <div class="progress-bar bg-info" 
+                                                 style="width: @((demo.Count * 100.0 / totalUsers).ToString("F0"))%"></div>
+                                        </div>
+                                        <span class="badge bg-info badge-lg">@demo.Count</span>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center py-3">No age data available</p>
+                        }
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="chart-card">
+                        <h4 class="mb-4">
+                            <i class="fas fa-leaf me-2 text-success"></i>
+                            Popular Dietary Preferences
+                        </h4>
+                        @if (dietaryStats?.Any() == true)
+                        {
+                            @foreach (var stat in dietaryStats.Take(5))
+                            {
+                                <div class="top-item">
+                                    <div>
+                                        <strong>@stat.DietaryType</strong>
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <div class="progress me-3" style="width: 100px; height: 20px;">
+                                            <div class="progress-bar bg-success" 
+                                                 style="width: @((stat.Count * 100.0 / totalUsers).ToString("F0"))%"></div>
+                                        </div>
+                                        <span class="badge bg-success badge-lg">@stat.Count</span>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center py-3">No dietary data available</p>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="chart-card">
+                        <h4 class="mb-4">
+                            <i class="fas fa-clock me-2 text-danger"></i>
+                            Recent Activity
+                        </h4>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="text-muted mb-3">Latest Reservations</h6>
+                                @if (recentReservations?.Any() == true)
+                                {
+                                    @foreach (var reservation in recentReservations.Take(5))
+                                    {
+                                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
+                                            <div>
+                                                <strong>@reservation.CustomerName</strong>
+                                                <br>
+                                                <small class="text-muted">@reservation.RestaurantName</small>
+                                            </div>
+                                            <small class="text-muted">
+                                                @reservation.ReservationDateTime.ToString("MMM dd, h:mm tt")
+                                            </small>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <p class="text-muted">No recent reservations</p>
+                                }
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <h6 class="text-muted mb-3">Latest Reviews</h6>
+                                @if (recentReviews?.Any() == true)
+                                {
+                                    @foreach (var review in recentReviews.Take(5))
+                                    {
+                                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
+                                            <div>
+                                                <strong>@review.Title</strong>
+                                                <br>
+                                                <small class="text-muted">@review.RestaurantName</small>
+                                            </div>
+                                            <div class="text-end">
+                                                <div class="text-warning">
+                                                    @for (int i = 1; i <= review.Rating; i++)
+                                                    {
+                                                        <i class="fas fa-star" style="font-size: 0.8rem;"></i>
+                                                    }
+                                                </div>
+                                                <small class="text-muted">@review.CreatedAt.ToString("MMM dd")</small>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <p class="text-muted">No recent reviews</p>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private bool isLoading = true;
+    
+    // Statistics
+    private int totalUsers = 0;
+    private int totalRestaurants = 0;
+    private int totalReservations = 0;
+    private int totalReviews = 0;
+    private int newUsersThisMonth = 0;
+    private int reservationsThisMonth = 0;
+    private double averageReviewRating = 0;
+    
+    // Data lists
+    private List<RestaurantReservationStat>? topRestaurantsByReservations;
+    private List<RestaurantRatingStat>? topRestaurantsByRating;
+    private List<AgeDemographic>? ageDemographics;
+    private List<DietaryStat>? dietaryStats;
+    private List<RecentReservation>? recentReservations;
+    private List<RecentReview>? recentReviews;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadReportsData();
+        isLoading = false;
+    }
+
+    private async Task LoadReportsData()
+    {
+        try
+        {
+            var currentMonth = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+            
+            // Basic statistics
+            totalUsers = await DbContext.Users.CountAsync();
+            totalRestaurants = await DbContext.Restaurants.CountAsync();
+            totalReservations = await DbContext.Reservations.CountAsync();
+            totalReviews = await DbContext.RestaurantReviews.CountAsync();
+            
+            newUsersThisMonth = await DbContext.Users
+                .Where(u => u.CreatedAt >= currentMonth)
+                .CountAsync();
+                
+            reservationsThisMonth = await DbContext.Reservations
+                .Where(r => r.ReservationDateTime >= currentMonth)
+                .CountAsync();
+                
+            if (totalReviews > 0)
+            {
+                averageReviewRating = await DbContext.RestaurantReviews
+                    .AverageAsync(r => (double)r.Rating);
+            }
+            
+            // Top restaurants by reservations
+            topRestaurantsByReservations = await DbContext.Reservations
+                .GroupBy(r => r.Restaurant)
+                .Select(g => new RestaurantReservationStat
+                {
+                    RestaurantName = g.Key.Name,
+                    CuisineTypes = string.Join(", ", g.Key.CuisineTypes.Take(2)),
+                    ReservationCount = g.Count()
+                })
+                .OrderByDescending(x => x.ReservationCount)
+                .ToListAsync();
+                
+            // Top restaurants by rating
+            topRestaurantsByRating = await DbContext.RestaurantReviews
+                .GroupBy(r => r.Restaurant)
+                .Select(g => new RestaurantRatingStat
+                {
+                    RestaurantName = g.Key.Name,
+                    AverageRating = g.Average(r => (double)r.Rating),
+                    ReviewCount = g.Count()
+                })
+                .Where(x => x.ReviewCount >= 1) // At least 1 review
+                .OrderByDescending(x => x.AverageRating)
+                .ToListAsync();
+                
+            // Age demographics (only for users with birth year > 0)
+            var currentYear = DateTime.Now.Year;
+            var usersWithAge = await DbContext.Users
+                .Where(u => u.BirthYear > 0)
+                .Select(u => currentYear - u.BirthYear)
+                .ToListAsync();
+                
+            ageDemographics = usersWithAge
+                .GroupBy(age => 
+                    age < 25 ? "Under 25" :
+                    age < 35 ? "25-34" :
+                    age < 45 ? "35-44" :
+                    age < 55 ? "45-54" :
+                    age < 65 ? "55-64" : "65+")
+                .Select(g => new AgeDemographic
+                {
+                    AgeRange = g.Key,
+                    Count = g.Count()
+                })
+                .OrderBy(x => x.AgeRange)
+                .ToList();
+                
+            // Dietary preferences
+            dietaryStats = await DbContext.Users
+                .Where(u => u.DietaryType != DietaryType.None)
+                .GroupBy(u => u.DietaryType)
+                .Select(g => new DietaryStat
+                {
+                    DietaryType = g.Key.ToString(),
+                    Count = g.Count()
+                })
+                .OrderByDescending(x => x.Count)
+                .ToListAsync();
+                
+            // Recent reservations
+            recentReservations = await DbContext.Reservations
+                .Include(r => r.Restaurant)
+                .OrderByDescending(r => r.ReservationDateTime)
+                .Take(10)
+                .Select(r => new RecentReservation
+                {
+                    CustomerName = r.CustomerName,
+                    RestaurantName = r.Restaurant.Name,
+                    ReservationDateTime = r.ReservationDateTime
+                })
+                .ToListAsync();
+                
+            // Recent reviews
+            recentReviews = await DbContext.RestaurantReviews
+                .Include(r => r.Restaurant)
+                .OrderByDescending(r => r.CreatedAt)
+                .Take(10)
+                .Select(r => new RecentReview
+                {
+                    Title = r.Title,
+                    RestaurantName = r.Restaurant.Name,
+                    Rating = r.Rating,
+                    CreatedAt = r.CreatedAt
+                })
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading reports data: {ex.Message}");
+        }
+    }
+
+    // Data models for reports
+    public class RestaurantReservationStat
+    {
+        public string RestaurantName { get; set; } = "";
+        public string CuisineTypes { get; set; } = "";
+        public int ReservationCount { get; set; }
+    }
+
+    public class RestaurantRatingStat
+    {
+        public string RestaurantName { get; set; } = "";
+        public double AverageRating { get; set; }
+        public int ReviewCount { get; set; }
+    }
+
+    public class AgeDemographic
+    {
+        public string AgeRange { get; set; } = "";
+        public int Count { get; set; }
+    }
+
+    public class DietaryStat
+    {
+        public string DietaryType { get; set; } = "";
+        public int Count { get; set; }
+    }
+
+    public class RecentReservation
+    {
+        public string CustomerName { get; set; } = "";
+        public string RestaurantName { get; set; } = "";
+        public DateTime ReservationDateTime { get; set; }
+    }
+
+    public class RecentReview
+    {
+        public string Title { get; set; } = "";
+        public string RestaurantName { get; set; } = "";
+        public int Rating { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+} 

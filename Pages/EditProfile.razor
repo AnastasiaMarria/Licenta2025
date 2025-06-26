@@ -1,0 +1,369 @@
+@page "/profile/edit"
+@using DineSure.Models
+@using DineSure.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.ComponentModel.DataAnnotations
+@inject NavigationManager NavigationManager
+@inject AuthService AuthService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILogger<EditProfile> Logger
+
+<PageTitle>Edit Profile - DineSure</PageTitle>
+
+<AuthorizeView>
+    <Authorized>
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h3 class="mb-0">Edit My Profile</h3>
+                        <a href="/profile" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>Back to Profile
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        @if (user != null)
+                        {
+                            <EditForm Model="@editModel" OnValidSubmit="HandleUpdate" Context="editFormContext">
+                                <DataAnnotationsValidator />
+
+                                @if (!string.IsNullOrEmpty(errorMessage))
+                                {
+                                    <div class="alert alert-danger">
+                                        @errorMessage
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrEmpty(successMessage))
+                                {
+                                    <div class="alert alert-success">
+                                        @successMessage
+                                    </div>
+                                }
+
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <h5>Personal Information</h5>
+                                        <div class="mb-3">
+                                            <label class="fw-bold">Username</label>
+                                            <InputText class="form-control" @bind-Value="editModel.UserName" disabled="@isProcessing" />
+                                            <ValidationMessage For="@(() => editModel.UserName)" />
+                                            <small class="form-text text-muted">This is how other users will see you</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="fw-bold">Email</label>
+                                            <p class="text-muted">@user.Email (cannot be changed)</p>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="fw-bold">Member Since</label>
+                                            <p class="text-muted">@user.CreatedAt.ToString("MMMM dd, yyyy")</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <h5>Dietary Information</h5>
+                                        
+                                        <div class="form-group mb-3">
+                                            <label class="fw-bold">Diet Type</label>
+                                            <InputSelect class="form-select" @bind-Value="editModel.DietaryType" disabled="@isProcessing">
+                                                @foreach (var dietType in Enum.GetValues(typeof(DietaryType)))
+                                                {
+                                                    <option value="@dietType">@GetDietaryTypeDisplayName((DietaryType)dietType)</option>
+                                                }
+                                            </InputSelect>
+                                        </div>
+
+                                        <div class="form-group mb-3">
+                                            <label class="fw-bold">Health Conditions</label>
+                                            <div class="mt-2">
+                                                <div class="form-check mb-2">
+                                                    <InputCheckbox class="form-check-input" @bind-Value="editModel.HasDiabetes" disabled="@isProcessing" />
+                                                    <label class="form-check-label">Diabetes</label>
+                                                </div>
+                                                <div class="form-check mb-2">
+                                                    <InputCheckbox class="form-check-input" @bind-Value="editModel.IsLactoseIntolerant" disabled="@isProcessing" />
+                                                    <label class="form-check-label">Lactose Intolerance</label>
+                                                </div>
+                                                <div class="form-check mb-2">
+                                                    <InputCheckbox class="form-check-input" @bind-Value="editModel.IsGlutenFree" disabled="@isProcessing" />
+                                                    <label class="form-check-label">Gluten Free</label>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group mb-3">
+                                            <label class="fw-bold">Food Preferences</label>
+                                            <InputTextArea class="form-control" rows="4" @bind-Value="preferencesInput" 
+                                                         placeholder="Enter your food preferences separated by commas (e.g., Spicy, Mediterranean, Asian)" 
+                                                         disabled="@isProcessing" />
+                                            <small class="form-text text-muted">Separate multiple preferences with commas</small>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <h5>Allergies</h5>
+                                        <div class="form-group mb-3">
+                                            <label class="fw-bold">Select Your Allergies</label>
+                                            <div class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                                                @foreach (var allergy in Enum.GetValues(typeof(Allergy)))
+                                                {
+                                                    @if ((Allergy)allergy != Allergy.None)
+                                                    {
+                                                        <div class="form-check mb-2">
+                                                            <input type="checkbox" 
+                                                                   class="form-check-input" 
+                                                                   checked="@(selectedAllergies.Contains((Allergy)allergy))"
+                                                                   @onchange="@((ChangeEventArgs e) => ToggleAllergy((Allergy)allergy, e))"
+                                                                   disabled="@isProcessing" />
+                                                            <label class="form-check-label">
+                                                                @GetAllergyDisplayName((Allergy)allergy)
+                                                            </label>
+                                                        </div>
+                                                    }
+                                                }
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group mb-3">
+                                            <label class="fw-bold">Other Allergies</label>
+                                            <InputTextArea class="form-control" rows="3" @bind-Value="otherAllergiesInput" 
+                                                         placeholder="Any other allergies not listed above (separated by commas)" 
+                                                         disabled="@isProcessing" />
+                                            <small class="form-text text-muted">These will be added to your food preferences</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="text-center mt-4">
+                                    <button type="submit" class="btn btn-primary me-2" disabled="@isProcessing">
+                                        @if (isProcessing)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                            <span>Updating...</span>
+                                        }
+                                        else
+                                        {
+                                            <span>Update Profile</span>
+                                        }
+                                    </button>
+                                    <a href="/profile" class="btn btn-outline-secondary">Cancel</a>
+                                </div>
+                            </EditForm>
+                        }
+                        else
+                        {
+                            <div class="text-center">
+                                <p>Loading profile...</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <div class="text-center">
+            <h3>Please log in to edit your profile</h3>
+            <a href="login" class="btn btn-primary">Login</a>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private User? user;
+    private EditProfileModel editModel = new();
+    private string preferencesInput = string.Empty;
+    private string otherAllergiesInput = string.Empty;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private bool isProcessing = false;
+    private HashSet<Allergy> selectedAllergies = new();
+
+    private class EditProfileModel
+    {
+        [Required(ErrorMessage = "Username is required")]
+        [StringLength(50, MinimumLength = 3, ErrorMessage = "Username must be between 3 and 50 characters")]
+        [RegularExpression(@"^[a-zA-Z0-9._-]+$", ErrorMessage = "Username can only contain letters, numbers, dots, hyphens, and underscores")]
+        public string UserName { get; set; } = string.Empty;
+        
+        public DietaryType DietaryType { get; set; }
+        public bool HasDiabetes { get; set; }
+        public bool IsLactoseIntolerant { get; set; }
+        public bool IsGlutenFree { get; set; }
+    }
+
+    private string GetDietaryTypeDisplayName(DietaryType type) => type switch
+    {
+        DietaryType.None => "No Specific Diet",
+        DietaryType.Vegetarian => "Vegetarian (No Meat)",
+        DietaryType.Vegan => "Vegan (No Animal Products)",
+        DietaryType.Pescatarian => "Pescatarian (Vegetarian + Fish)",
+        DietaryType.FlexitarianMostlyPlantBased => "Flexitarian (Mostly Plant-Based)",
+        DietaryType.Paleo => "Paleo Diet",
+        DietaryType.Keto => "Ketogenic Diet",
+        DietaryType.Mediterranean => "Mediterranean Diet",
+        DietaryType.DairyFree => "Dairy-Free",
+        DietaryType.LowCarb => "Low-Carb",
+        DietaryType.Halal => "Halal",
+        DietaryType.Kosher => "Kosher",
+        _ => type.ToString()
+    };
+
+    private string GetAllergyDisplayName(Allergy allergy) => allergy.ToString();
+
+    private void ToggleAllergy(Allergy allergy, ChangeEventArgs e)
+    {
+        if (e.Value is bool isChecked)
+        {
+            if (isChecked)
+            {
+                selectedAllergies.Add(allergy);
+            }
+            else
+            {
+                selectedAllergies.Remove(allergy);
+            }
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            // Try to get email from claims first, then fall back to name
+            var userEmail = authState.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value 
+                         ?? authState.User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
+                         ?? authState.User.Identity.Name;
+            
+            if (!string.IsNullOrEmpty(userEmail))
+            {
+                try
+                {
+                    user = await AuthService.GetCurrentUserAsync(userEmail);
+                    
+                    // If we didn't find user by email, try by username
+                    if (user == null && !userEmail.Contains("@"))
+                    {
+                        user = await AuthService.GetUserByUsernameAsync(userEmail);
+                    }
+                    
+                    if (user != null)
+                    {
+                        // Initialize the edit model with current user data
+                        editModel.UserName = user.UserName ?? string.Empty;
+                        editModel.DietaryType = user.DietaryType;
+                        editModel.HasDiabetes = user.HasDiabetes;
+                        editModel.IsLactoseIntolerant = user.IsLactoseIntolerant;
+                        editModel.IsGlutenFree = user.IsGlutenFree;
+
+                        // Initialize allergies
+                        selectedAllergies = user.Allergies.ToHashSet();
+
+                        // Initialize food preferences (excluding other allergies)
+                        var regularPreferences = user.FoodPreferences.Where(p => !p.StartsWith("Other Allergy:")).ToList();
+                        preferencesInput = string.Join(", ", regularPreferences);
+
+                        // Initialize other allergies
+                        var otherAllergies = user.FoodPreferences
+                            .Where(p => p.StartsWith("Other Allergy:"))
+                            .Select(p => p.Replace("Other Allergy: ", ""))
+                            .ToList();
+                        otherAllergiesInput = string.Join(", ", otherAllergies);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error loading user profile: {ex.Message}");
+                }
+            }
+        }
+    }
+
+    private async Task HandleUpdate()
+    {
+        if (isProcessing || user == null) return;
+
+        try
+        {
+            isProcessing = true;
+            errorMessage = string.Empty;
+            successMessage = string.Empty;
+            StateHasChanged();
+
+            Logger.LogInformation("Starting profile update for user {Email}", user.Email);
+
+            // Create updated user object
+            var updatedUser = new User
+            {
+                UserName = editModel.UserName?.Trim(),
+                DietaryType = editModel.DietaryType,
+                HasDiabetes = editModel.HasDiabetes,
+                IsLactoseIntolerant = editModel.IsLactoseIntolerant,
+                IsGlutenFree = editModel.IsGlutenFree,
+                Allergies = selectedAllergies.ToList()
+            };
+
+            // Process food preferences
+            var foodPreferences = new List<string>();
+            
+            // Add regular food preferences
+            if (!string.IsNullOrWhiteSpace(preferencesInput))
+            {
+                var preferences = preferencesInput
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .ToList();
+                foodPreferences.AddRange(preferences);
+            }
+
+            // Add other allergies as food preferences
+            if (!string.IsNullOrWhiteSpace(otherAllergiesInput))
+            {
+                var otherAllergies = otherAllergiesInput
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(a => $"Other Allergy: {a}")
+                    .ToList();
+                foodPreferences.AddRange(otherAllergies);
+            }
+
+            updatedUser.FoodPreferences = foodPreferences;
+
+            // Set dietary restrictions based on health conditions
+            var restrictions = new List<string>();
+            if (editModel.HasDiabetes) restrictions.Add("Diabetes-Friendly");
+            if (editModel.IsLactoseIntolerant) restrictions.Add("Lactose-Free");
+            if (editModel.IsGlutenFree) restrictions.Add("Gluten-Free");
+            updatedUser.DietaryRestrictions = restrictions;
+
+            var (success, errors) = await AuthService.UpdateUserProfileAsync(user.Email!, updatedUser);
+            
+            if (success)
+            {
+                Logger.LogInformation("Profile updated successfully for user {Email}", user.Email);
+                successMessage = "Profile updated successfully!";
+                StateHasChanged();
+
+                // Delay before redirecting
+                await Task.Delay(1500);
+                NavigationManager.NavigateTo("/profile", true);
+            }
+            else
+            {
+                errorMessage = string.Join(" ", errors);
+                Logger.LogWarning("Profile update failed for user {Email}. Errors: {Errors}", 
+                    user.Email, string.Join(", ", errors));
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "An unexpected error occurred during profile update. Please try again.";
+            Logger.LogError(ex, "Profile update failed with exception for user {Email}", user?.Email);
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+} 

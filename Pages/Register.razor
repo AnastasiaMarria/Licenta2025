@@ -1,0 +1,345 @@
+@page "/register"
+@using DineSure.Models
+@using DineSure.Services
+@using Microsoft.AspNetCore.Components.Forms
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.EntityFrameworkCore
+@using DineSure.Data
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager NavigationManager
+@inject AuthService AuthService
+@inject ILogger<Register> Logger
+@inject ApplicationDbContext DbContext
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Sign Up - DineSure</PageTitle>
+
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="text-center">Create Your Profile</h3>
+            </div>
+            <div class="card-body">
+                <EditForm Model="@model" OnValidSubmit="HandleRegistration">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger">
+                            @errorMessage
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(successMessage))
+                    {
+                        <div class="alert alert-success">
+                            @successMessage
+                        </div>
+                    }
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h5>Account Information</h5>
+                            <div class="form-group mb-3">
+                                <label for="username">Username</label>
+                                <InputText id="username" class="form-control" @bind-Value="model.UserName" disabled="@isProcessing" />
+                                <ValidationMessage For="@(() => model.UserName)" />
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label for="email">Email</label>
+                                <InputText id="email" class="form-control" @bind-Value="model.Email" disabled="@isProcessing" />
+                                <ValidationMessage For="@(() => model.Email)" />
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label for="password">Password</label>
+                                <InputText type="password" id="password" class="form-control" @bind-Value="model.Password" disabled="@isProcessing" />
+                                <ValidationMessage For="@(() => model.Password)" />
+                                <small class="form-text text-muted">
+                                    Password must be at least 8 characters long and contain uppercase, lowercase, numbers, and special characters.
+                                </small>
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label for="birthYear">Birth Year</label>
+                                <InputNumber id="birthYear" class="form-control" @bind-Value="model.BirthYear" disabled="@isProcessing" />
+                                <ValidationMessage For="@(() => model.BirthYear)" />
+                                <small class="form-text text-muted">
+                                    You must be 16 or older to create an account.
+                                </small>
+                                @if (model.BirthYear > 0 && (DateTime.Now.Year - model.BirthYear) < 16)
+                                {
+                                    <div class="text-danger mt-1">
+                                        <small><i class="fas fa-exclamation-triangle"></i> You must be at least 16 years old to register.</small>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <h5>Dietary Type</h5>
+                            <div class="form-group mb-4">
+                                <InputSelect class="form-select" @bind-Value="model.DietaryType" disabled="@isProcessing">
+                                    @foreach (var dietType in Enum.GetValues(typeof(DietaryType)))
+                                    {
+                                        <option value="@dietType">@GetDietaryTypeDisplayName((DietaryType)dietType)</option>
+                                    }
+                                </InputSelect>
+                            </div>
+
+                            <h5>Health Conditions</h5>
+                            <div class="form-group mb-3">
+                                <div class="form-check mb-2">
+                                    <InputCheckbox class="form-check-input" @bind-Value="model.HasDiabetes" disabled="@isProcessing" />
+                                    <label class="form-check-label">Diabetes</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <InputCheckbox class="form-check-input" @bind-Value="model.IsLactoseIntolerant" disabled="@isProcessing" />
+                                    <label class="form-check-label">Lactose Intolerance</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <InputCheckbox class="form-check-input" @bind-Value="model.IsGlutenFree" disabled="@isProcessing" />
+                                    <label class="form-check-label">Gluten Free</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <InputCheckbox class="form-check-input" @bind-Value="model.NeedsPureeFoods" disabled="@isProcessing" />
+                                    <label class="form-check-label">
+                                        <i class="fas fa-utensils me-1"></i>Looking for Puree Foods
+                                        <small class="text-muted d-block">For swallowing difficulties or special dietary needs</small>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <h5>Food Preferences</h5>
+                            <div class="form-group mb-3">
+                                <label for="preferences">Food Preferences (comma-separated)</label>
+                                <InputText id="preferences" class="form-control" @bind-Value="preferencesInput" 
+                                         placeholder="e.g., Spicy, Mediterranean, Asian" disabled="@isProcessing" />
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <h5>Allergies</h5>
+                            <div class="form-group mb-3">
+                                <label>Select Your Allergies</label>
+                                <div class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                                    @foreach (var allergy in Enum.GetValues(typeof(Allergy)))
+                                    {
+                                        @if ((Allergy)allergy != Allergy.None)
+                                        {
+                                            <div class="form-check mb-2">
+                                                <input type="checkbox" 
+                                                       class="form-check-input" 
+                                                       checked="@(selectedAllergies.Contains((Allergy)allergy))"
+                                                       @onchange="@((ChangeEventArgs e) => ToggleAllergy((Allergy)allergy, e))"
+                                                       disabled="@isProcessing" />
+                                                <label class="form-check-label">
+                                                    @GetAllergyDisplayName((Allergy)allergy)
+                                                </label>
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label for="otherAllergies">Other Allergies (comma-separated)</label>
+                                <InputText id="otherAllergies" class="form-control" @bind-Value="otherAllergiesInput" 
+                                         placeholder="Any other allergies not listed above" disabled="@isProcessing" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group mb-3 text-center mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg" disabled="@isProcessing">
+                            @if (isProcessing)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                <span>Creating Profile...</span>
+                            }
+                            else
+                            {
+                                <span>Create Profile</span>
+                            }
+                        </button>
+                    </div>
+
+                    <div class="text-center">
+                        <p>Already have an account? <a href="login">Login here</a></p>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private RegisterModel model = new();
+    private string preferencesInput = string.Empty;
+    private string otherAllergiesInput = string.Empty;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private bool isProcessing = false;
+    private HashSet<Allergy> selectedAllergies = new();
+
+    private string GetDietaryTypeDisplayName(DietaryType type) => type switch
+    {
+        DietaryType.None => "No Specific Diet",
+        DietaryType.Vegetarian => "Vegetarian (No Meat)",
+        DietaryType.Vegan => "Vegan (No Animal Products)",
+        DietaryType.Pescatarian => "Pescatarian (Vegetarian + Fish)",
+        DietaryType.FlexitarianMostlyPlantBased => "Flexitarian (Mostly Plant-Based)",
+        DietaryType.Paleo => "Paleo Diet",
+        DietaryType.Keto => "Ketogenic Diet",
+        DietaryType.Mediterranean => "Mediterranean Diet",
+        DietaryType.DairyFree => "Dairy-Free",
+        DietaryType.LowCarb => "Low-Carb",
+        DietaryType.Halal => "Halal",
+        DietaryType.Kosher => "Kosher",
+        _ => type.ToString()
+    };
+
+    private string GetAllergyDisplayName(Allergy allergy) => allergy.ToString();
+
+    private void ToggleAllergy(Allergy allergy, ChangeEventArgs e)
+    {
+        if (e.Value is bool isChecked)
+        {
+            if (isChecked)
+            {
+                selectedAllergies.Add(allergy);
+            }
+            else
+            {
+                selectedAllergies.Remove(allergy);
+            }
+        }
+    }
+
+    private async Task HandleRegistration()
+    {
+        if (isProcessing) return;
+
+        try
+        {
+            isProcessing = true;
+            errorMessage = string.Empty;
+            successMessage = string.Empty;
+            StateHasChanged();
+
+            // Validate age (must be 16 or older)
+            var currentAge = DateTime.Now.Year - model.BirthYear;
+            if (currentAge < 16)
+            {
+                errorMessage = "You must be at least 16 years old to create an account.";
+                return;
+            }
+
+            Logger.LogInformation("Starting registration process for user {Email}", model.Email);
+
+            // Set the selected allergies
+            model.Allergies = selectedAllergies.ToList();
+            Logger.LogInformation("Selected allergies: {Allergies}", string.Join(", ", model.Allergies));
+
+            // Add other allergies if specified
+            if (!string.IsNullOrWhiteSpace(otherAllergiesInput))
+            {
+                // Store other allergies in the food preferences for now
+                var otherAllergies = otherAllergiesInput
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(a => $"Other Allergy: {a}");
+
+                model.FoodPreferences = preferencesInput
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Concat(otherAllergies)
+                    .ToList();
+            }
+            else
+            {
+                model.FoodPreferences = preferencesInput
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .ToList();
+            }
+            Logger.LogInformation("Food preferences: {Preferences}", string.Join(", ", model.FoodPreferences));
+
+            // Add dietary restrictions based on health conditions
+            var restrictions = new List<string>();
+            if (model.HasDiabetes) restrictions.Add("Diabetes-Friendly");
+            if (model.IsLactoseIntolerant) restrictions.Add("Lactose-Free");
+            if (model.IsGlutenFree) restrictions.Add("Gluten-Free");
+            if (model.NeedsPureeFoods) restrictions.Add("Puree-Foods");
+            model.DietaryRestrictions = restrictions;
+            Logger.LogInformation("Dietary restrictions: {Restrictions}", string.Join(", ", model.DietaryRestrictions));
+
+            // Create a new User instance from the model
+            var user = new User
+            {
+                UserName = model.UserName,
+                Email = model.Email,
+                BirthYear = model.BirthYear,
+                DietaryType = model.DietaryType,
+                Allergies = model.Allergies,
+                FoodPreferences = model.FoodPreferences,
+                DietaryRestrictions = model.DietaryRestrictions,
+                HasDiabetes = model.HasDiabetes,
+                IsLactoseIntolerant = model.IsLactoseIntolerant,
+                IsGlutenFree = model.IsGlutenFree,
+                NeedsPureeFoods = model.NeedsPureeFoods,
+                EmailConfirmed = true // Since we're not implementing email confirmation yet
+            };
+
+            Logger.LogInformation("Created User instance with UserName: {UserName}, Email: {Email}", user.UserName, user.Email);
+
+            // Verify the database connection
+            try
+            {
+                await DbContext.Database.CanConnectAsync();
+                Logger.LogInformation("Successfully connected to the database");
+            }
+            catch (Exception dbEx)
+            {
+                Logger.LogError(dbEx, "Database connection test failed");
+                throw new Exception("Could not connect to the database", dbEx);
+            }
+
+            var (success, errors) = await AuthService.RegisterAsync(user, model.Password);
+            
+            if (success)
+            {
+                Logger.LogInformation("User {Email} registered successfully", user.Email);
+                successMessage = "Registration successful! Please log in with your new account.";
+                StateHasChanged();
+
+                // Add a small delay before redirecting
+                await Task.Delay(1000);
+
+                NavigationManager.NavigateTo("/login", true);
+            }
+            else
+            {
+                errorMessage = string.Join(" ", errors);
+                Logger.LogWarning("Registration failed for user {Email}. Errors: {Errors}", 
+                    user.Email, string.Join(", ", errors));
+            }
+        }
+        catch (Exception ex)
+        {
+            var message = "An unexpected error occurred during registration: " + ex.Message;
+            if (ex.InnerException != null)
+            {
+                message += " Inner exception: " + ex.InnerException.Message;
+            }
+            errorMessage = message;
+            Logger.LogError(ex, "Registration failed with exception for user {Email}. Stack trace: {StackTrace}", 
+                model.Email, ex.StackTrace);
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+} 

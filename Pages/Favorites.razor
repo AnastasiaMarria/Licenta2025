@@ -1,0 +1,176 @@
+@page "/favorites"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using DineSure.Models
+@using DineSure.Services
+@inject UserManager<User> UserManager
+@inject FavoriteService FavoriteService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>My Favorites - DineSure</PageTitle>
+
+<AuthorizeView>
+    <Authorized>
+        <div class="container-fluid">
+            <h1 class="text-primary mb-3">
+                <i class="fas fa-heart text-danger"></i> My Favorite Restaurants
+            </h1>
+            <p class="text-muted">Your personally curated list of favorite dining spots</p>
+    
+            @if (isLoading)
+            {
+                <div class="text-center my-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            }
+            else if (!favoriteRestaurants.Any())
+            {
+                <div class="text-center my-5">
+                    <h3>No Favorites Yet</h3>
+                    <p class="text-muted">You haven't added any restaurants to your favorites yet.</p>
+                    <button class="btn btn-primary" @onclick="@(() => NavigationManager.NavigateTo("/restaurants"))">
+                        <i class="fas fa-search"></i> Discover Restaurants
+                    </button>
+                </div>
+            }
+            else
+            {
+                <div class="row">
+                    @foreach (var restaurant in favoriteRestaurants)
+                    {
+                        <div class="col-lg-4 col-md-6 mb-4">
+                            <div class="card h-100">
+                                <img src="@GetRestaurantImageUrl(restaurant)" class="card-img-top" alt="@restaurant.Name" style="height: 200px; object-fit: cover;">
+                                <div class="card-body">
+                                    <h5 class="card-title">@restaurant.Name</h5>
+                                    <p class="card-text text-muted">@restaurant.Address</p>
+                                    <button class="btn btn-primary" @onclick="@(() => ViewRestaurantDetail(restaurant.Id))">
+                                        View Details
+                                    </button>
+                                    <button class="btn btn-outline-danger ms-2" @onclick="@(async () => await RemoveFromFavorites(restaurant.Id))">
+                                        Remove
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <h3>Please Login</h3>
+                            <p>You need to be logged in to view your saved favorites.</p>
+                            <p class="text-muted">Your favorites will be synced across all your devices when you login.</p>
+                            <a href="/login" class="btn btn-primary">Login</a>
+                            <a href="/register" class="btn btn-outline-primary ms-2">Register</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private List<Restaurant> favoriteRestaurants = new();
+    private User? currentUser;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCurrentUser();
+        if (currentUser != null)
+        {
+            await LoadFavoriteRestaurants();
+        }
+        isLoading = false;
+    }
+
+    private async Task LoadCurrentUser()
+    {
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            if (authState.User.Identity?.IsAuthenticated == true)
+            {
+                var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    currentUser = await UserManager.FindByIdAsync(userId);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading current user: {ex.Message}");
+        }
+    }
+
+    private async Task LoadFavoriteRestaurants()
+    {
+        try
+        {
+            if (currentUser != null)
+            {
+                favoriteRestaurants = await FavoriteService.GetUserFavoritesAsync(currentUser.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading favorite restaurants: {ex.Message}");
+        }
+    }
+
+    private async Task RemoveFromFavorites(int restaurantId)
+    {
+        try
+        {
+            if (currentUser == null) return;
+
+            var success = await FavoriteService.ToggleFavoriteAsync(currentUser.Id, restaurantId);
+            if (success)
+            {
+                favoriteRestaurants = favoriteRestaurants.Where(r => r.Id != restaurantId).ToList();
+                
+                // Refresh the favorites dropdown in the main layout
+                try
+                {
+                    await JSRuntime.InvokeVoidAsync("window.refreshFavorites");
+                }
+                catch (Exception jsEx)
+                {
+                    Console.WriteLine($"Error refreshing favorites: {jsEx.Message}");
+                    // Non-critical error, continue without refreshing
+                }
+                
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error removing from favorites: {ex.Message}");
+        }
+    }
+
+    private void ViewRestaurantDetail(int restaurantId)
+    {
+        NavigationManager.NavigateTo($"/restaurant/{restaurantId}");
+    }
+
+    private string GetRestaurantImageUrl(Restaurant restaurant)
+    {
+        var images = new[] { "food1.jpg", "food2.jpg", "food3.jpg", "food4.jpg", "food5.jpg" };
+        var idx = Math.Abs(restaurant.Name.GetHashCode()) % images.Length;
+        return $"images/restaurants/{images[idx]}";
+    }
+} 
