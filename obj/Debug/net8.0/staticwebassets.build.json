@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "7g9k5eM9xkDTW8+mI/fybzX4YfMeKVAwBLguhJhsjG8=",
+  "Hash": "kDD8ELXS5u5YHiRJhp7iyTQYRR7SYphZkovhIy45qnU=",
   "Source": "DineSure",
   "BasePath": "_content/DineSure",
   "Mode": "Default",
@@ -1947,6 +1947,48 @@
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
       "OriginalItemSpec": "wwwroot\\images\\restaurants\\food9.jpg"
+    },
+    {
+      "Identity": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\js\\chart.min.js",
+      "SourceId": "DineSure",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\",
+      "BasePath": "_content/DineSure",
+      "RelativePath": "js/chart.min#[.{fingerprint}]?.js",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "aha3q8tt2s",
+      "Integrity": "Mh46P6mNpKqpV9EL5Xy7UU3gmJ7tj51ya10FkCzQGQQ=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\js\\chart.min.js"
+    },
+    {
+      "Identity": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\js\\charts.js",
+      "SourceId": "DineSure",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\",
+      "BasePath": "_content/DineSure",
+      "RelativePath": "js/charts#[.{fingerprint}]?.js",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "41enyxgc9a",
+      "Integrity": "ONNLSZwy5nnnrSauaGi/UC3yxsk0pTPXo5+W7qaZT+o=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\js\\charts.js"
     },
     {
       "Identity": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\js\\map.js",
@@ -6812,6 +6854,170 @@
         {
           "Name": "integrity",
           "Value": "sha256-BX7VY7h8dMvYK7vsLcFg68+CAaUrgogqM0RYFiSeWN4="
+        }
+      ]
+    },
+    {
+      "Route": "js/chart.min.aha3q8tt2s.js",
+      "AssetFile": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\js\\chart.min.js",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "204948"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "text/javascript"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"Mh46P6mNpKqpV9EL5Xy7UU3gmJ7tj51ya10FkCzQGQQ=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Thu, 26 Jun 2025 20:31:42 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "aha3q8tt2s"
+        },
+        {
+          "Name": "label",
+          "Value": "js/chart.min.js"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-Mh46P6mNpKqpV9EL5Xy7UU3gmJ7tj51ya10FkCzQGQQ="
+        }
+      ]
+    },
+    {
+      "Route": "js/chart.min.js",
+      "AssetFile": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\js\\chart.min.js",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "204948"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "text/javascript"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"Mh46P6mNpKqpV9EL5Xy7UU3gmJ7tj51ya10FkCzQGQQ=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Thu, 26 Jun 2025 20:31:42 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-Mh46P6mNpKqpV9EL5Xy7UU3gmJ7tj51ya10FkCzQGQQ="
+        }
+      ]
+    },
+    {
+      "Route": "js/charts.41enyxgc9a.js",
+      "AssetFile": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\js\\charts.js",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "3088"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "text/javascript"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"ONNLSZwy5nnnrSauaGi/UC3yxsk0pTPXo5+W7qaZT+o=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Thu, 26 Jun 2025 20:28:18 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "41enyxgc9a"
+        },
+        {
+          "Name": "label",
+          "Value": "js/charts.js"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-ONNLSZwy5nnnrSauaGi/UC3yxsk0pTPXo5+W7qaZT+o="
+        }
+      ]
+    },
+    {
+      "Route": "js/charts.js",
+      "AssetFile": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\js\\charts.js",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "3088"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "text/javascript"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"ONNLSZwy5nnnrSauaGi/UC3yxsk0pTPXo5+W7qaZT+o=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Thu, 26 Jun 2025 20:28:18 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-ONNLSZwy5nnnrSauaGi/UC3yxsk0pTPXo5+W7qaZT+o="
         }
       ]
     },

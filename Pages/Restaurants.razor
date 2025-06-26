@@ -113,6 +113,147 @@
         50% { transform: scale(1.3); }
         100% { transform: scale(1); }
     }
+    
+    /* Restaurants Header Section with Background Image */
+    .restaurants-header {
+        background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('/images/restaurant-background.jpg');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        color: white;
+        padding: 4rem 0;
+        min-height: 300px;
+        display: flex;
+        align-items: center;
+        position: relative;
+    }
+    
+    /* Search and Filter Section with Same Background */
+    .search-section {
+        background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('/images/restaurant-background.jpg') !important;
+        background-size: cover !important;
+        background-position: center !important;
+        background-repeat: no-repeat !important;
+        color: white !important;
+    }
+    
+    /* White text for all elements in search section */
+    .search-section h2,
+    .search-section p,
+    .search-section .search-title,
+    .search-section .search-subtitle,
+    .search-section .form-label,
+    .search-section .alert,
+    .search-section .alert-link,
+    .search-section .text-muted,
+    .search-section .form-check-label,
+    .search-section small {
+        color: white !important;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    }
+    
+    /* Enhanced form controls for better visibility */
+    .search-section .form-select,
+    .search-section .form-control {
+        background: rgba(255, 255, 255, 0.1) !important;
+        border: 2px solid rgba(255, 255, 255, 0.3) !important;
+        color: white !important;
+        backdrop-filter: blur(10px);
+    }
+    
+    .search-section .form-select:focus,
+    .search-section .form-control:focus {
+        background: rgba(255, 255, 255, 0.2) !important;
+        border-color: rgba(255, 255, 255, 0.5) !important;
+        box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.25) !important;
+    }
+    
+    .search-section .form-select option {
+        background: #333 !important;
+        color: white !important;
+    }
+    
+    /* Enhanced alert styling */
+    .search-section .alert {
+        background: rgba(13, 110, 253, 0.2) !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+        backdrop-filter: blur(10px);
+    }
+    
+    /* Enhanced button styling */
+    .search-section .btn {
+        background: rgba(255, 255, 255, 0.1) !important;
+        border: 2px solid rgba(255, 255, 255, 0.3) !important;
+        color: white !important;
+        backdrop-filter: blur(10px);
+    }
+    
+    .search-section .btn:hover {
+        background: rgba(255, 255, 255, 0.2) !important;
+        border-color: rgba(255, 255, 255, 0.5) !important;
+        transform: translateY(-2px);
+    }
+    
+    .search-section .btn-primary {
+        background: rgba(13, 110, 253, 0.8) !important;
+        border-color: #0d6efd !important;
+    }
+    
+    .restaurants-header .page-title {
+        color: white;
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    }
+    
+    .restaurants-header .page-subtitle {
+        color: white;
+        font-size: 1.2rem;
+        margin-bottom: 0;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    }
+    
+    .restaurants-header .view-toggle .btn {
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        backdrop-filter: blur(10px);
+        margin-left: 0.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .restaurants-header .view-toggle .btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.5);
+        transform: translateY(-2px);
+    }
+    
+    .restaurants-header .view-toggle .btn-primary {
+        background: rgba(13, 110, 253, 0.8);
+        border-color: #0d6efd;
+    }
+    
+    /* Responsive Design for Header */
+    @@media (max-width: 768px) {
+        .restaurants-header {
+            padding: 3rem 0;
+            min-height: 250px;
+        }
+        
+        .restaurants-header .page-title {
+            font-size: 2rem;
+        }
+        
+        .restaurants-header .page-subtitle {
+            font-size: 1rem;
+        }
+        
+        .restaurants-header .view-toggle {
+            text-align: center !important;
+            margin-top: 1rem;
+        }
+    }
 </style>
 
 <div class="restaurants-page">
@@ -123,10 +264,10 @@
                 <div class="col-lg-8">
                     <h1 class="page-title">
                         <i class="fas fa-utensils me-3"></i>
-                        Restaurants in Bucharest
+                        DineSure
                     </h1>
                     <p class="page-subtitle">
-                        Discover @filteredRestaurants.Count restaurants from real OpenStreetMap data
+                        Eat worry-free: discover spots that suit your needs
                     </p>
                 </div>
                 <div class="col-lg-4 text-lg-end">
@@ -149,8 +290,7 @@
             <!-- Main Search Header -->
             <div class="row mb-4">
                 <div class="col-12 text-center">
-                    <h2 class="search-title">Find restaurants in Bucharest</h2>
-                    <p class="search-subtitle">Discover restaurants that match your dietary needs</p>
+                    <!-- Header removed for cleaner design -->
                 </div>
             </div>
 

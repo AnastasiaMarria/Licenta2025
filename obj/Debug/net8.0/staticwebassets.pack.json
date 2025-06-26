@@ -125,6 +125,14 @@
       "PackagePath": "staticwebassets\\images\\restaurants\\food9.jpg"
     },
     {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\js\\chart.min.js",
+      "PackagePath": "staticwebassets\\js\\chart.min.js"
+    },
+    {
+      "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\js\\charts.js",
+      "PackagePath": "staticwebassets\\js\\charts.js"
+    },
+    {
       "Id": "C:\\Users\\Anastasia\\Desktop\\ASE\\RestaurantsByMe\\wwwroot\\js\\map.js",
       "PackagePath": "staticwebassets\\js\\map.js"
     },

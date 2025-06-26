@@ -43,6 +43,25 @@
     <script src="_framework/blazor.server.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
+    <!-- Chart.js - Local copy for reliability -->
+    <script src="js/chart.min.js"></script>
+    <script src="js/charts.js?v=20240101"></script>
+    <script>
+        // Verify Chart.js loaded
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 DOM loaded - checking Chart.js...');
+            console.log('📊 Chart.js available:', typeof Chart !== 'undefined');
+            console.log('📊 Chart version:', typeof Chart !== 'undefined' ? Chart.version : 'Not loaded');
+            console.log('📊 Chart helper functions loaded:', typeof window.createLineChart === 'function');
+            
+            if (typeof Chart === 'undefined') {
+                console.error('❌ Chart.js failed to load! Charts will not work.');
+            } else {
+                console.log('✅ Chart.js loaded successfully!');
+            }
+        });
+    </script>
+    
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 

@@ -372,6 +372,30 @@
       <EndpointProperties><![CDATA[[{"Name":"fingerprint","Value":"ndpui17t6s"},{"Name":"integrity","Value":"sha256-BX7VY7h8dMvYK7vsLcFg68\u002BCAaUrgogqM0RYFiSeWN4="},{"Name":"label","Value":"_content/DineSure/images/restaurants/food9.jpg"}]]]></EndpointProperties>
       <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"max-age=31536000, immutable"},{"Name":"Content-Length","Value":"783105"},{"Name":"Content-Type","Value":"image/jpeg"},{"Name":"ETag","Value":"\u0022BX7VY7h8dMvYK7vsLcFg68\u002BCAaUrgogqM0RYFiSeWN4=\u0022"},{"Name":"Last-Modified","Value":"Thu, 26 Jun 2025 11:07:19 GMT"}]]]></ResponseHeaders>
     </StaticWebAssetEndpoint>
+    <StaticWebAssetEndpoint Include="_content/DineSure/js/chart.min.aha3q8tt2s.js">
+      <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\chart.min.js'))</AssetFile>
+      <Selectors><![CDATA[[]]]></Selectors>
+      <EndpointProperties><![CDATA[[{"Name":"fingerprint","Value":"aha3q8tt2s"},{"Name":"integrity","Value":"sha256-Mh46P6mNpKqpV9EL5Xy7UU3gmJ7tj51ya10FkCzQGQQ="},{"Name":"label","Value":"_content/DineSure/js/chart.min.js"}]]]></EndpointProperties>
+      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"max-age=31536000, immutable"},{"Name":"Content-Length","Value":"204948"},{"Name":"Content-Type","Value":"text/javascript"},{"Name":"ETag","Value":"\u0022Mh46P6mNpKqpV9EL5Xy7UU3gmJ7tj51ya10FkCzQGQQ=\u0022"},{"Name":"Last-Modified","Value":"Thu, 26 Jun 2025 20:31:42 GMT"}]]]></ResponseHeaders>
+    </StaticWebAssetEndpoint>
+    <StaticWebAssetEndpoint Include="_content/DineSure/js/chart.min.js">
+      <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\chart.min.js'))</AssetFile>
+      <Selectors><![CDATA[[]]]></Selectors>
+      <EndpointProperties><![CDATA[[{"Name":"integrity","Value":"sha256-Mh46P6mNpKqpV9EL5Xy7UU3gmJ7tj51ya10FkCzQGQQ="}]]]></EndpointProperties>
+      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"no-cache"},{"Name":"Content-Length","Value":"204948"},{"Name":"Content-Type","Value":"text/javascript"},{"Name":"ETag","Value":"\u0022Mh46P6mNpKqpV9EL5Xy7UU3gmJ7tj51ya10FkCzQGQQ=\u0022"},{"Name":"Last-Modified","Value":"Thu, 26 Jun 2025 20:31:42 GMT"}]]]></ResponseHeaders>
+    </StaticWebAssetEndpoint>
+    <StaticWebAssetEndpoint Include="_content/DineSure/js/charts.41enyxgc9a.js">
+      <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\charts.js'))</AssetFile>
+      <Selectors><![CDATA[[]]]></Selectors>
+      <EndpointProperties><![CDATA[[{"Name":"fingerprint","Value":"41enyxgc9a"},{"Name":"integrity","Value":"sha256-ONNLSZwy5nnnrSauaGi/UC3yxsk0pTPXo5\u002BW7qaZT\u002Bo="},{"Name":"label","Value":"_content/DineSure/js/charts.js"}]]]></EndpointProperties>
+      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"max-age=31536000, immutable"},{"Name":"Content-Length","Value":"3088"},{"Name":"Content-Type","Value":"text/javascript"},{"Name":"ETag","Value":"\u0022ONNLSZwy5nnnrSauaGi/UC3yxsk0pTPXo5\u002BW7qaZT\u002Bo=\u0022"},{"Name":"Last-Modified","Value":"Thu, 26 Jun 2025 20:28:18 GMT"}]]]></ResponseHeaders>
+    </StaticWebAssetEndpoint>
+    <StaticWebAssetEndpoint Include="_content/DineSure/js/charts.js">
+      <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\charts.js'))</AssetFile>
+      <Selectors><![CDATA[[]]]></Selectors>
+      <EndpointProperties><![CDATA[[{"Name":"integrity","Value":"sha256-ONNLSZwy5nnnrSauaGi/UC3yxsk0pTPXo5\u002BW7qaZT\u002Bo="}]]]></EndpointProperties>
+      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"no-cache"},{"Name":"Content-Length","Value":"3088"},{"Name":"Content-Type","Value":"text/javascript"},{"Name":"ETag","Value":"\u0022ONNLSZwy5nnnrSauaGi/UC3yxsk0pTPXo5\u002BW7qaZT\u002Bo=\u0022"},{"Name":"Last-Modified","Value":"Thu, 26 Jun 2025 20:28:18 GMT"}]]]></ResponseHeaders>
+    </StaticWebAssetEndpoint>
     <StaticWebAssetEndpoint Include="_content/DineSure/js/map.c59et8ugi5.js">
       <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\map.js'))</AssetFile>
       <Selectors><![CDATA[[]]]></Selectors>

@@ -1,0 +1,199 @@
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+
+<div class="chart-container">
+    <canvas id="@ChartId" width="400" height="200"></canvas>
+</div>
+
+@code {
+    [Parameter] public string ChartId { get; set; } = Guid.NewGuid().ToString();
+    [Parameter] public List<ChartDataPoint> Data { get; set; } = new();
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string BorderColor { get; set; } = "#007bff";
+    [Parameter] public string BackgroundColor { get; set; } = "rgba(0, 123, 255, 0.1)";
+    [Parameter] public int Height { get; set; } = 200;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Wait for Chart.js to load with retries
+            await WaitForChartJsAndCreateChart();
+        }
+    }
+
+    private async Task WaitForChartJsAndCreateChart()
+    {
+        int retries = 0;
+        int maxRetries = 20; // 10 seconds max wait
+        
+        while (retries < maxRetries)
+        {
+            try
+            {
+                var chartJsLoaded = await JSRuntime.InvokeAsync<bool>("eval", "typeof Chart !== 'undefined'");
+                if (chartJsLoaded)
+                {
+                    Console.WriteLine($"✅ Chart.js is ready! Creating chart {ChartId}");
+                    await CreateChart();
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⏳ Waiting for Chart.js... (attempt {retries + 1}/{maxRetries})");
+            }
+            
+            retries++;
+            await Task.Delay(500);
+        }
+        
+        Console.WriteLine($"❌ Chart.js failed to load after {maxRetries} attempts for chart {ChartId}");
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Update chart when data changes
+        if (Data?.Any() == true)
+        {
+            await Task.Delay(100);
+            await CreateChart();
+        }
+    }
+
+    public async Task UpdateChart(List<ChartDataPoint> newData)
+    {
+        Data = newData;
+        await CreateChart();
+    }
+
+    private async Task CreateChart()
+    {
+        Console.WriteLine($"=== CHART DEBUG {ChartId} ===");
+        Console.WriteLine($"Data points: {Data?.Count ?? 0}");
+        
+        if (Data?.Any() != true) 
+        {
+            Console.WriteLine($"No data available for chart {ChartId}");
+            return;
+        }
+
+        try
+        {
+            // Check if Chart.js is available
+            var chartJsLoaded = await JSRuntime.InvokeAsync<bool>("eval", "typeof Chart !== 'undefined'");
+            Console.WriteLine($"Chart.js loaded: {chartJsLoaded}");
+            
+            // Check if our helper function exists
+            var helperExists = await JSRuntime.InvokeAsync<bool>("eval", "typeof window.createLineChart === 'function'");
+            Console.WriteLine($"createLineChart function exists: {helperExists}");
+            
+            // Check if canvas exists
+            var canvasExists = await JSRuntime.InvokeAsync<bool>("eval", $"document.getElementById('{ChartId}') !== null");
+            Console.WriteLine($"Canvas {ChartId} exists in DOM: {canvasExists}");
+
+            if (!chartJsLoaded)
+            {
+                Console.WriteLine("ERROR: Chart.js is not loaded!");
+                return;
+            }
+
+            if (!helperExists)
+            {
+                Console.WriteLine("ERROR: createLineChart function not found!");
+                return;
+            }
+
+            if (!canvasExists)
+            {
+                Console.WriteLine("ERROR: Canvas element not found in DOM!");
+                return;
+            }
+
+            var chartData = new
+            {
+                labels = Data.Select(d => d.Label).ToArray(),
+                datasets = new[]
+                {
+                    new
+                    {
+                        label = Title,
+                        data = Data.Select(d => d.Value).ToArray(),
+                        borderColor = BorderColor,
+                        backgroundColor = BackgroundColor,
+                        borderWidth = 3,
+                        fill = true,
+                        tension = 0.4,
+                        pointBackgroundColor = BorderColor,
+                        pointBorderColor = "#fff",
+                        pointBorderWidth = 2,
+                        pointRadius = 6,
+                        pointHoverRadius = 8
+                    }
+                }
+            };
+
+            var options = new
+            {
+                responsive = true,
+                maintainAspectRatio = false,
+                plugins = new
+                {
+                    legend = new
+                    {
+                        display = false
+                    }
+                },
+                scales = new
+                {
+                    y = new
+                    {
+                        beginAtZero = true,
+                        ticks = new
+                        {
+                            stepSize = 1
+                        }
+                    },
+                    x = new
+                    {
+                        ticks = new
+                        {
+                            maxTicksLimit = 8
+                        }
+                    }
+                },
+                animation = new
+                {
+                    duration = 2000,
+                    easing = "easeInOutQuart"
+                }
+            };
+
+            Console.WriteLine($"Calling createLineChart for {ChartId}");
+            Console.WriteLine($"Labels: {string.Join(", ", chartData.labels.Take(3))}...");
+            Console.WriteLine($"Values: {string.Join(", ", chartData.datasets[0].data.Take(3))}...");
+            
+            await JSRuntime.InvokeVoidAsync("createLineChart", ChartId, chartData, options);
+            Console.WriteLine($"✅ Successfully created chart {ChartId}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error creating chart {ChartId}: {ex.Message}");
+            Console.WriteLine($"❌ Stack trace: {ex.StackTrace}");
+        }
+    }
+
+    public class ChartDataPoint
+    {
+        public string Label { get; set; } = "";
+        public int Value { get; set; }
+    }
+}
+
+<style>
+    .chart-container {
+        position: relative;
+        width: 100%;
+        height: @(Height)px;
+    }
+</style> 

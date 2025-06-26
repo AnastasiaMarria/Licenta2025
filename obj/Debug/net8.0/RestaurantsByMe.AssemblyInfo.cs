@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("DineSure")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cb112644ad710857d992322ce940714e3d8ddf95")]
 [assembly: System.Reflection.AssemblyProductAttribute("DineSure")]
 [assembly: System.Reflection.AssemblyTitleAttribute("DineSure")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

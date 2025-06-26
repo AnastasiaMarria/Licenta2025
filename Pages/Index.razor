@@ -2,52 +2,697 @@
 @layout MainLayout
 @using DineSure.Models
 @using DineSure.Services
+@using DineSure.Data
+@using Microsoft.EntityFrameworkCore
+@using DineSure.Shared.Components
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 @inject OverpassRestaurantService OverpassService
+@inject IServiceProvider ServiceProvider
 
 <PageTitle>DineSure - Find the Best Restaurants</PageTitle>
 
+<style>
+    /* Hero Section Styles */
+    .hero-section {
+        background: linear-gradient(135deg, #4f46e5 0%, #d1e19f 100%);
+        height: 42.5vh;
+        display: flex;
+        align-items: center;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .hero-content {
+        position: relative;
+        z-index: 2;
+        text-align: center;
+        color: white;
+        padding: 2rem 0;
+        width: 100%;
+    }
+    
+    .hero-title {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .hero-subtitle {
+        font-size: 1rem;
+        margin-bottom: 2rem;
+        color: white;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    /* Enhanced Search Bar */
+    .search-container {
+        max-width: 600px;
+        margin: 0 auto 2rem auto;
+    }
+    
+    .search-wrapper {
+        background: white;
+        border-radius: 50px;
+        padding: 8px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        display: flex;
+        align-items: center;
+        transition: all 0.3s ease;
+    }
+    
+    .search-wrapper:hover {
+        box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        transform: translateY(-2px);
+    }
+    
+    .search-input {
+        flex: 1;
+        border: none;
+        outline: none;
+        padding: 1rem 1.5rem;
+        font-size: 1.1rem;
+        background: transparent;
+        color: #333;
+    }
+    
+    .search-input::placeholder {
+        color: #999;
+    }
+    
+    .search-btn {
+        background: linear-gradient(135deg, #007bff, #0056b3);
+        color: white;
+        border: none;
+        border-radius: 40px;
+        padding: 1rem 2rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        white-space: nowrap;
+    }
+    
+    .search-btn:hover {
+        background: linear-gradient(135deg, #0056b3, #004085);
+        transform: scale(1.05);
+    }
+    
+    /* Hero Stats Cards */
+    .hero-stats {
+        display: flex;
+        justify-content: center;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        margin-top: 2rem;
+    }
+    
+    .stat-card {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 20px;
+        padding: 1rem 1.5rem;
+        text-align: center;
+        min-width: 120px;
+        transition: all 0.3s ease;
+    }
+    
+    .stat-card:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: translateY(-5px);
+    }
+    
+    .stat-icon {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+        color: #ffd700;
+    }
+    
+    .stat-number {
+        display: block;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 0.25rem;
+    }
+    
+    .stat-label {
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.8);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    /* Live Reports Section */
+    .live-reports-section {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        padding: 4rem 0;
+    }
+    
+    .section-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 1rem;
+    }
+    
+    .section-subtitle {
+        font-size: 1.1rem;
+        color: #6c757d;
+        margin-bottom: 3rem;
+    }
+    
+    .home-chart-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        border: 1px solid #e9ecef;
+        transition: transform 0.3s ease;
+        height: 100%;
+    }
+    
+    .home-chart-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .live-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background-color: #28a745;
+        border-radius: 50%;
+        margin-right: 8px;
+        animation: pulse 2s infinite;
+    }
+    
+    @@keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+        }
+        70% {
+            box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+        }
+    }
+    
+    .home-chart-container {
+        width: 100%;
+        height: 250px;
+        position: relative;
+    }
+    
+    .metric-badge {
+        background: linear-gradient(135deg, #007bff, #0056b3);
+        color: white;
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        display: inline-block;
+        margin: 0.2rem;
+    }
+    
+    .top-restaurant-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #e9ecef;
+        transition: background-color 0.3s ease;
+    }
+    
+    .top-restaurant-item:hover {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+    }
+    
+    .top-restaurant-item:last-child {
+        border-bottom: none;
+    }
+    
+    .rank-number {
+        background: linear-gradient(45deg, #007bff, #0056b3);
+        color: white;
+        border-radius: 50%;
+        width: 25px;
+        height: 25px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 0.8rem;
+        margin-right: 0.75rem;
+    }
+    
+    .view-all-btn {
+        background: linear-gradient(135deg, #6c757d, #495057);
+        color: white;
+        border: none;
+        border-radius: 25px;
+        padding: 0.5rem 1.5rem;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+    
+    .view-all-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        color: white;
+    }
+    
+    /* Feature Cards */
+    .feature-card {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        text-align: center;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+    
+    .feature-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+    }
+    
+    .feature-icon {
+        font-size: 3rem;
+        color: #007bff;
+        margin-bottom: 1.5rem;
+    }
+    
+    .feature-card h4 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: #333;
+    }
+    
+    .feature-card p {
+        color: #6c757d;
+        line-height: 1.6;
+    }
+    
+    /* Action Cards */
+    .action-card {
+        display: block;
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        text-align: center;
+        text-decoration: none;
+        color: inherit;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+    
+    .action-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .action-icon {
+        font-size: 2.5rem;
+        color: #007bff;
+        margin-bottom: 1rem;
+    }
+    
+    .action-card h5 {
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+        color: #333;
+    }
+    
+    .action-card p {
+        color: #6c757d;
+        margin-bottom: 0;
+        font-size: 0.95rem;
+    }
+    
+    /* CTA Section */
+    .cta-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .cta-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.2);
+        z-index: 1;
+    }
+    
+    .cta-content {
+        position: relative;
+        z-index: 2;
+        padding: 3rem 0;
+    }
+    
+    .cta-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .cta-text {
+        font-size: 1.2rem;
+        margin-bottom: 2rem;
+        color: rgba(255, 255, 255, 0.9);
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    .btn-cta {
+        background: linear-gradient(135deg, #ffd700, #ffed4e);
+        color: #333;
+        border: none;
+        border-radius: 50px;
+        padding: 1rem 2.5rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-block;
+        transition: all 0.3s ease;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    
+    .btn-cta:hover {
+        background: linear-gradient(135deg, #ffed4e, #ffd700);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        color: #333;
+    }
+    
+    .btn-outline-light {
+        border: 2px solid rgba(255, 255, 255, 0.8);
+        color: white;
+        border-radius: 50px;
+        padding: 1rem 2.5rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-block;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-outline-light:hover {
+        background: white;
+        color: #333;
+        transform: translateY(-2px);
+    }
+    
+    /* Responsive Design */
+    @@media (max-width: 768px) {
+        .hero-section {
+            height: 35vh;
+        }
+        
+        .hero-title {
+            font-size: 1.5rem;
+        }
+        
+        .hero-subtitle {
+            font-size: 0.9rem;
+        }
+        
+        .hero-stats {
+            gap: 1rem;
+        }
+        
+        .stat-card {
+            min-width: 100px;
+            padding: 0.75rem 1rem;
+        }
+        
+        .search-wrapper {
+            flex-direction: column;
+            gap: 10px;
+            padding: 15px;
+        }
+        
+        .search-btn {
+            width: 100%;
+        }
+        
+        .cta-title {
+            font-size: 2rem;
+        }
+        
+        .feature-card, .action-card {
+            margin-bottom: 1.5rem;
+        }
+    }
+</style>
+
 <!-- Hero Section -->
-<div class="modern-hero">
-    <div class="overlay">
-        <div class="content-wrapper">
-            <h1 class="hero-main-title">Find the Best Restaurants in Bucharest</h1>
-            <p class="hero-subtitle">Discover amazing dining experiences with real restaurants from OpenStreetMap<br />Perfect for your dietary preferences and location needs.</p>
-            <div class="search-bar">
-                <input type="text" placeholder="Search for restaurants..." class="search-input" @bind="searchQuery" @onkeypress="OnSearchKeyPress" />
-                <button class="search-button" @onclick="PerformSearch">
-                    <i class="fas fa-search me-1"></i>Search
-                </button>
+<section class="hero-section">
+    <div class="container">
+        <div class="hero-content">
+            <h1 class="hero-title">Find Your Next Favorite Bite</h1>
+            <p class="hero-subtitle">
+                Explore Bucharest's top spots that fit your diet.
+            </p>
+            
+            <!-- Enhanced Search Bar -->
+            <div class="search-container">
+                <div class="search-wrapper">
+                    <input type="text" 
+                           placeholder="Search for restaurants..." 
+                           class="search-input" 
+                           @bind="searchQuery" 
+                           @onkeypress="OnSearchKeyPress" />
+                    <button class="search-btn" @onclick="PerformSearch">
+                        <i class="fas fa-search me-2"></i>Search
+                    </button>
+                </div>
             </div>
-            <div class="hero-stats mt-4">
-                <div class="stat-item">
-                    <i class="fas fa-utensils"></i>
+            
+            <!-- Hero Stats Cards -->
+            <div class="hero-stats">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-utensils"></i>
+                    </div>
                     <span class="stat-number">@restaurantCount</span>
                     <span class="stat-label">Restaurants</span>
                 </div>
-                <div class="stat-item">
-                    <i class="fas fa-map-marker-alt"></i>
-                    <span class="stat-number">Bucharest</span>
-                    <span class="stat-label">Coverage</span>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <span class="stat-number">@totalReservations</span>
+                    <span class="stat-label">Total Bookings</span>
                 </div>
-                <div class="stat-item">
-                    <i class="fas fa-star"></i>
-                    <span class="stat-number">Real Data</span>
-                    <span class="stat-label">From OSM</span>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <span class="stat-number">@totalReviews</span>
+                    <span class="stat-label">Reviews</span>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <span class="stat-number">@todayActivity</span>
+                    <span class="stat-label">Today's Activity</span>
                 </div>
             </div>
         </div>
     </div>
-</div>
+</section>
+
+<!-- Live Reports Section -->
+<section class="live-reports-section py-4">
+    <div class="container">
+        <div class="row mb-4">
+            <div class="col-12 text-center py-4">
+                <h2 class="section-title display-4">
+                    <span class="live-indicator"></span>
+                    Live Restaurant Analytics
+                </h2>
+                <p class="section-subtitle text-muted my-3">Real-time insights into restaurant activity and trends</p>
+            </div>
+        </div>
+        
+        @if (isLoadingReports)
+        {
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading reports...</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="row">
+                <!-- Daily Reservations Chart -->
+                <div class="col-lg-8 mb-4">
+                    <div class="home-chart-card">
+                        <h3 class="h4 mb-3">
+                            <i class="fas fa-chart-line me-2 text-primary"></i>
+                            Global Daily Reservations Trend (All Users)
+                            <span class="live-indicator"></span>
+                        </h3>
+                        <div class="home-chart-container">
+                            <LineChart ChartId="homeReservationsChart" 
+                                     Data="@reservationsChartData" 
+                                     Title="Global Daily Reservations (All Users)"
+                                     BorderColor="#007bff"
+                                     BackgroundColor="rgba(0, 123, 255, 0.1)"
+                                     Height="250" />
+                        </div>
+                        <div class="mt-3 text-center">
+                            <span class="metric-badge">
+                                <i class="fas fa-calendar-day me-1"></i>Today: @todayReservations
+                            </span>
+                            <span class="metric-badge">
+                                <i class="fas fa-chart-bar me-1"></i>Avg: @dailyReservationAverage.ToString("F1")/day
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Top Restaurants Live Leaderboard -->
+                <div class="col-lg-4 mb-4">
+                    <div class="home-chart-card">
+                        <h5 class="mb-3">
+                            <i class="fas fa-trophy me-2 text-warning"></i>
+                            Top Restaurants (Global Rankings)
+                            <span class="live-indicator"></span>
+                        </h5>
+                        @if (topRestaurantsHome?.Any() == true)
+                        {
+                            @for (int i = 0; i < Math.Min(5, topRestaurantsHome.Count); i++)
+                            {
+                                var restaurant = topRestaurantsHome[i];
+                                <div class="top-restaurant-item">
+                                    <div class="d-flex align-items-center">
+                                        <span class="rank-number">@(i + 1)</span>
+                                        <div>
+                                            <strong style="font-size: 0.9rem;">@restaurant.RestaurantName</strong>
+                                            <br>
+                                            <small class="text-muted">@restaurant.CuisineTypes</small>
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="badge bg-primary">@restaurant.ReservationCount</span>
+                                        @if (restaurant.TodayReservations > 0)
+                                        {
+                                            <br><small class="text-success">+@restaurant.TodayReservations today</small>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center py-3">No data available</p>
+                        }
+                        <div class="text-center mt-3">
+                            <a href="/reports" class="view-all-btn">
+                                <i class="fas fa-chart-pie me-1"></i>View Full Reports
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Reviews and Activity Row -->
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <div class="home-chart-card">
+                        <h3 class="h5 mb-3">
+                            <i class="fas fa-star me-2 text-success"></i>
+                            Global Daily Reviews Activity (All Users)
+                            <span class="live-indicator"></span>
+                        </h3>
+                        <div style="height: 150px;">
+                            <LineChart ChartId="homeReviewsChart" 
+                                     Data="@reviewsChartData" 
+                                     Title="Global Daily Reviews (All Users)"
+                                     BorderColor="#28a745"
+                                     BackgroundColor="rgba(40, 167, 69, 0.1)"
+                                     Height="150" />
+                        </div>
+                        <div class="mt-3 text-center">
+                            <span class="metric-badge">
+                                <i class="fas fa-star me-1"></i>Today: @todayReviews reviews
+                            </span>
+                            <span class="metric-badge">
+                                <i class="fas fa-chart-bar me-1"></i>Avg: @dailyReviewAverage.ToString("F1")/day
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 mb-4">
+                    <div class="home-chart-card">
+                        <h3 class="h5 mb-3">
+                            <i class="fas fa-clock me-2 text-info"></i>
+                            Global Real-Time Activity (All Users)
+                        </h3>
+                        <div class="row text-center">
+                            <div class="col-6 mb-3">
+                                <h3 class="text-primary mb-1">@totalReservations</h3>
+                                <small class="text-muted">Total Bookings</small>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <h3 class="text-success mb-1">@totalReviews</h3>
+                                <small class="text-muted">Total Reviews</small>
+                            </div>
+                            <div class="col-6">
+                                <h3 class="text-warning mb-1">@averageReviewRating.ToString("F1")</h3>
+                                <small class="text-muted">Avg Rating</small>
+                            </div>
+                            <div class="col-6">
+                                <h3 class="text-info mb-1">@restaurantCount</h3>
+                                <small class="text-muted">Restaurants</small>
+                            </div>
+                        </div>
+                        <div class="text-center mt-3">
+                            <span class="metric-badge">
+                                <span class="live-indicator"></span>
+                                Live Data
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</section>
 
 <!-- Features Section -->
-<section class="features-section py-5">
+<section class="features-section py-4">
     <div class="container">
         <div class="row text-center">
-            <div class="col-12 mb-5">
-                <h2 class="section-title">Why Choose DineSure?</h2>
-                <p class="section-subtitle">We provide real, accurate restaurant data to help you make the best dining decisions</p>
+            <div class="col-12 mb-5 py-4">
+                <h2 class="section-title display-4">Why Choose DineSure?</h2>
+                <p class="section-subtitle text-muted my-3">We provide real, accurate restaurant data to help you make the best dining decisions</p>
             </div>
         </div>
         <div class="row">
@@ -83,11 +728,12 @@
 </section>
 
 <!-- Quick Actions Section -->
-<section class="quick-actions-section py-5 bg-light">
+<section class="quick-actions-section py-4 bg-light">
     <div class="container">
         <div class="row">
-            <div class="col-12 text-center mb-4">
-                <h2 class="section-title">Explore Restaurants</h2>
+            <div class="col-12 text-center mb-4 py-4">
+                <h2 class="section-title display-4">Explore Restaurants</h2>
+                <p class="section-subtitle text-muted my-3">Discover amazing dining experiences in Bucharest</p>
             </div>
         </div>
         <div class="row justify-content-center">
@@ -149,20 +795,164 @@
 @code {
     private string searchQuery = "";
     private int restaurantCount = 0;
+    private int totalReservations = 0;
+    private int totalReviews = 0;
+    private int todayActivity = 0;
+    private bool isLoadingReports = true;
+    private List<LiveRestaurant> topRestaurantsHome = new();
+    private double dailyReservationAverage = 0;
+    private double dailyReviewAverage = 0;
+    private int todayReservations = 0;
+    private int todayReviews = 0;
+    private double averageReviewRating = 0;
+    private List<LineChart.ChartDataPoint> reservationsChartData = new();
+    private List<LineChart.ChartDataPoint> reviewsChartData = new();
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            var restaurants = await OverpassService.GetRestaurantsFromOSMAsync();
-            restaurantCount = restaurants.Count;
+            using var scope = ServiceProvider.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            
+            // Load GLOBAL restaurant statistics (all users, all restaurants)
+            restaurantCount = await dbContext.Restaurants.CountAsync();
+
+            // Load GLOBAL reservations data (from ALL users)
+            totalReservations = await dbContext.Reservations.CountAsync();
+            todayReservations = await dbContext.Reservations
+                .Where(r => r.ReservationDateTime.Date == DateTime.Now.Date)
+                .CountAsync();
+
+            // Load GLOBAL reviews data (from ALL users)
+            totalReviews = await dbContext.RestaurantReviews.CountAsync();
+            todayReviews = await dbContext.RestaurantReviews
+                .Where(r => r.CreatedAt.Date == DateTime.Now.Date)
+                .CountAsync();
+
+            todayActivity = todayReservations + todayReviews;
+
+            // Calculate GLOBAL averages (across all users)
+            if (totalReservations > 0)
+            {
+                var firstReservation = await dbContext.Reservations.MinAsync(r => r.ReservationDateTime);
+                var totalDays = Math.Max(1, (DateTime.Now - firstReservation).Days);
+                dailyReservationAverage = (double)totalReservations / totalDays;
+            }
+
+            if (totalReviews > 0)
+            {
+                var firstReview = await dbContext.RestaurantReviews.MinAsync(r => r.CreatedAt);
+                var reviewDays = Math.Max(1, (DateTime.Now - firstReview).Days);
+                dailyReviewAverage = (double)totalReviews / reviewDays;
+                averageReviewRating = await dbContext.RestaurantReviews.AverageAsync(r => (double)r.Rating);
+            }
+
+            // Load GLOBAL top restaurants by reservation count (from ALL users)
+            topRestaurantsHome = await dbContext.Reservations
+                .GroupBy(r => r.Restaurant)
+                .Select(g => new LiveRestaurant
+                {
+                    RestaurantName = g.Key.Name,
+                    CuisineTypes = string.Join(", ", g.Key.CuisineTypes.Take(2)),
+                    ReservationCount = g.Count(),
+                    TodayReservations = g.Count(r => r.ReservationDateTime.Date == DateTime.Now.Date)
+                })
+                .OrderByDescending(x => x.ReservationCount)
+                .Take(5)
+                .ToListAsync();
+
+            // Load chart data and render charts (GLOBAL data)
+            await LoadAndRenderCharts();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading restaurant count: {ex.Message}");
+            Console.WriteLine($"Error loading restaurant data: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
             restaurantCount = 0;
+            totalReservations = 0;
+            totalReviews = 0;
+            todayActivity = 0;
+            topRestaurantsHome = new();
+            dailyReservationAverage = 0;
+            dailyReviewAverage = 0;
+            todayReservations = 0;
+            todayReviews = 0;
+            averageReviewRating = 0;
+        }
+        finally
+        {
+            isLoadingReports = false;
         }
     }
+
+    private async Task LoadAndRenderCharts()
+    {
+        try
+        {
+            using var scope = ServiceProvider.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            
+            // Get GLOBAL daily data for last 30 days (from ALL users across the entire system)
+            var last30Days = Enumerable.Range(0, 30)
+                .Select(i => DateTime.Now.Date.AddDays(-29 + i))
+                .ToList();
+
+            reservationsChartData = new List<LineChart.ChartDataPoint>();
+            reviewsChartData = new List<LineChart.ChartDataPoint>();
+
+            foreach (var date in last30Days)
+            {
+                // Count ALL reservations from ALL users for this date
+                var reservationCount = await dbContext.Reservations
+                    .Where(r => r.ReservationDateTime.Date == date)
+                    .CountAsync();
+
+                // Count ALL reviews from ALL users for this date
+                var reviewCount = await dbContext.RestaurantReviews
+                    .Where(r => r.CreatedAt.Date == date)
+                    .CountAsync();
+
+                reservationsChartData.Add(new LineChart.ChartDataPoint
+                {
+                    Label = date.ToString("MMM dd"),
+                    Value = reservationCount
+                });
+
+                reviewsChartData.Add(new LineChart.ChartDataPoint
+                {
+                    Label = date.ToString("MMM dd"),
+                    Value = reviewCount
+                });
+            }
+
+            // Debug: Log chart data
+            Console.WriteLine($"✅ Loaded {reservationsChartData.Count} reservation data points");
+            Console.WriteLine($"✅ Loaded {reviewsChartData.Count} review data points");
+            
+            if (reservationsChartData.Any())
+            {
+                Console.WriteLine($"📊 Sample reservation data: {reservationsChartData.First().Label} = {reservationsChartData.First().Value}");
+                Console.WriteLine($"📊 Total reservation values: {reservationsChartData.Sum(d => d.Value)}");
+            }
+            
+            if (reviewsChartData.Any())
+            {
+                Console.WriteLine($"📊 Sample review data: {reviewsChartData.First().Label} = {reviewsChartData.First().Value}");
+                Console.WriteLine($"📊 Total review values: {reviewsChartData.Sum(d => d.Value)}");
+            }
+
+            // The charts will render automatically when the component renders
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error loading chart data: {ex.Message}");
+            Console.WriteLine($"❌ Stack trace: {ex.StackTrace}");
+        }
+    }
+
+
 
     private void PerformSearch()
     {
@@ -183,5 +973,14 @@
         {
             PerformSearch();
         }
+    }
+
+    // Data model for top restaurants
+    public class LiveRestaurant
+    {
+        public string RestaurantName { get; set; } = "";
+        public string CuisineTypes { get; set; } = "";
+        public int ReservationCount { get; set; }
+        public int TodayReservations { get; set; }
     }
 }

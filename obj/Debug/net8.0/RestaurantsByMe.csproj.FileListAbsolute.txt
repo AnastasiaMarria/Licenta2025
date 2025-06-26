@@ -156,3 +156,4 @@ C:\Users\Anastasia\Desktop\ASE\RestaurantsByMe\obj\Debug\net8.0\refint\DineSure.
 C:\Users\Anastasia\Desktop\ASE\RestaurantsByMe\obj\Debug\net8.0\DineSure.pdb
 C:\Users\Anastasia\Desktop\ASE\RestaurantsByMe\obj\Debug\net8.0\RestaurantsByMe.genruntimeconfig.cache
 C:\Users\Anastasia\Desktop\ASE\RestaurantsByMe\obj\Debug\net8.0\ref\DineSure.dll
+C:\Users\Anastasia\Desktop\ASE\RestaurantsByMe\obj\Debug\net8.0\RestaurantsByMe.sourcelink.json

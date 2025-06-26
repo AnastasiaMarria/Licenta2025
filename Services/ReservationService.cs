@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using DineSure.Data;
 using DineSure.Models;
 using RestaurantsByMe.Services;
+using Microsoft.Extensions.Logging;
 
 namespace DineSure.Services;
 
@@ -9,11 +10,13 @@ public class ReservationService
 {
     private readonly ApplicationDbContext _context;
     private readonly IEmailService _emailService;
+    private readonly ILogger<ReservationService> _logger;
 
-    public ReservationService(ApplicationDbContext context, IEmailService emailService)
+    public ReservationService(ApplicationDbContext context, IEmailService emailService, ILogger<ReservationService> logger)
     {
         _context = context;
         _emailService = emailService;
+        _logger = logger;
     }
 
     public async Task<Reservation> CreateReservationAsync(Reservation reservation)
@@ -41,13 +44,23 @@ public class ReservationService
                 );
             }
         }
-        catch (Exception ex)
+        catch (Exception emailEx)
         {
-            // Log the error but don't fail the reservation creation
-            Console.WriteLine($"Failed to send confirmation email: {ex.Message}");
+            // Log email error but don't fail the reservation
+            _logger.LogError(emailEx, "Failed to send confirmation email for reservation {ReservationId}", reservation.Id);
         }
-        
+
+        // Trigger real-time update for reports
+        await TriggerReportsUpdate();
+
         return reservation;
+    }
+
+    private Task TriggerReportsUpdate()
+    {
+        // This method can be expanded later with SignalR or other real-time mechanisms
+        // For now, it's a placeholder for future real-time functionality
+        return Task.CompletedTask;
     }
 
     public async Task<List<Reservation>> GetUserReservationsAsync(string userId)

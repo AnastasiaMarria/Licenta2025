@@ -958,6 +958,9 @@
             // Reload reviews to show the new one
             await LoadReviewsAsync();
             
+            // Trigger real-time update for reports
+            _ = TriggerReportsUpdate();
+            
             // Reset form
             reviewModel = new ReviewModel();
             
@@ -973,6 +976,13 @@
             isSubmittingReview = false;
             StateHasChanged();
         }
+    }
+
+    private Task TriggerReportsUpdate()
+    {
+        // This method can be expanded later with SignalR or other real-time mechanisms
+        // For now, it's a placeholder for future real-time functionality
+        return Task.CompletedTask;
     }
 
     public class ReservationModel
